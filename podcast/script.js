@@ -23,7 +23,7 @@ const downloadBtn = document.getElementById('download-btn');
 const selCount = document.getElementById('sel-count');
 
 // ==========================================
-// 1. ITUNES SEARCH & LOOKUP API
+// 1. ITUNES SEARCH API
 // ==========================================
 searchBtn.addEventListener('click', async () => {
     const query = searchInput.value.trim();
@@ -139,7 +139,7 @@ rssFileInput.addEventListener('change', function(e) {
 });
 
 // ==========================================
-// 3. RSS URL LADEN (Der "alte" Weg)
+// 3. RSS URL LADEN
 // ==========================================
 loadRssBtn.addEventListener('click', () => {
     const url = rssInput.value.trim();
@@ -158,7 +158,7 @@ async function fetchXML(url) {
         const data = await res.json();
         if (data.contents) return data.contents;
     } catch (e) {
-        throw new Error("Der Server blockiert alle externen Anfragen oder das XML ist zu groß.");
+        throw new Error("Der Server blockiert alle externen Anfragen.");
     }
     throw new Error("Fehler beim Verarbeiten des Feeds.");
 }
@@ -173,18 +173,18 @@ async function loadRSSUrl(feedUrl) {
         const xmlText = await fetchXML(feedUrl);
         parseXMLString(xmlText, "Unbekannt", "Unbekannt", "", feedUrl);
     } catch (err) {
-        showError(`Netzwerk Blockade oder Feed paginiert. Bitte nutze die Such-Funktion oben. (${err.message})`);
+        showError(`Netzwerk Blockade. Bitte nutze die Suche oder lade eine lokale XML hoch. (${err.message})`);
     }
 }
 
 function showError(message) {
     loadingInd.style.display = 'none';
     noEpMsg.style.display = 'block';
-    noEpMsg.innerHTML = `<span style="color:var(--del-text); background:var(--del-bg); padding:10px; border-radius:4px; display:inline-block; max-width:80%; line-height: 1.4;">${message}</span>`;
+    noEpMsg.innerHTML = `<span style="color:var(--del-text); background:var(--del-bg); padding:10px; border-radius:4px; display:inline-block;">${message}</span>`;
 }
 
 // ==========================================
-// 4. PARSING LOGIK (Für RSS/XML)
+// 4. PARSING LOGIK
 // ==========================================
 function parseXMLString(xmlText, fallbackTitle, fallbackAuthor, fallbackImg, sourceUrl) {
     const parser = new DOMParser();
@@ -237,9 +237,6 @@ function finalizeParsing() {
     episodesTable.style.display = 'table';
 }
 
-// ==========================================
-// 5. EPISODEN RENDERING & SELEKTION
-// ==========================================
 function renderEpisodes() {
     episodesBody.innerHTML = '';
     checkAll.checked = false;
@@ -281,7 +278,7 @@ function sanitizeFilename(name) {
 }
 
 // ==========================================
-// 6. ERZWUNGENER DOWNLOAD VIA FETCH/BLOB
+// 6. DIREKTER DOWNLOAD (_metadata.json UPDATE)
 // ==========================================
 downloadBtn.addEventListener('click', async () => {
     const selectedBoxes = document.querySelectorAll('.ep-check:checked');
@@ -296,12 +293,12 @@ downloadBtn.addEventListener('click', async () => {
         const ep = episodesData.find(e => e.id === epId);
         
         if (ep) {
-            downloadBtn.textContent = `Bereite Download vor (${i + 1}/${selectedBoxes.length})...`;
+            downloadBtn.textContent = `Lade (${i + 1}/${selectedBoxes.length})...`;
 
             const safeTitle = sanitizeFilename(ep.title);
             const fileNameBase = `${ep.date}_${safeTitle}`;
             
-            // 1. JSON Metadaten herunterladen
+            // 1. JSON Metadaten herunterladen (mit dem angeforderten '_metadata.json' Prefix!)
             const metadata = {
                 podcast_title: currentPodcastMeta.title,
                 podcast_author: currentPodcastMeta.author,
@@ -316,21 +313,19 @@ downloadBtn.addEventListener('click', async () => {
             const jsonUrl = URL.createObjectURL(jsonBlob);
             const aJson = document.createElement('a');
             aJson.href = jsonUrl;
-            aJson.download = `${fileNameBase}.json`;
+            aJson.download = `${fileNameBase}_metadata.json`;
             document.body.appendChild(aJson);
             aJson.click();
             document.body.removeChild(aJson);
             URL.revokeObjectURL(jsonUrl);
 
-            // 2. Audio-Datei via Fetch in einen Blob laden (erzwingt direkten Download)
+            // 2. Audio-Datei via Fetch in einen Blob laden
             let ext = ".mp3";
             if (ep.audioUrl.toLowerCase().includes(".m4a")) ext = ".m4a";
             if (ep.audioUrl.toLowerCase().includes(".wav")) ext = ".wav";
             if (ep.audioUrl.toLowerCase().includes(".ogg")) ext = ".ogg";
             
             try {
-                downloadBtn.textContent = `Lade Audio (${i + 1}/${selectedBoxes.length})...`;
-                // Fetch Request an die Audio-URL (funktioniert bei den meisten Podcast-CDNs)
                 const response = await fetch(ep.audioUrl);
                 if (!response.ok) throw new Error("HTTP Fehler");
                 
@@ -347,8 +342,6 @@ downloadBtn.addEventListener('click', async () => {
                 
             } catch (err) {
                 console.warn("CORS/Fetch Fehler beim Audio-Download. Nutze Fallback (neues Tab).", err);
-                
-                // FALLBACK: Wenn der Podcast-Server rigoros CORS blockiert, müssen wir es doch im neuen Tab öffnen
                 const aAudioFallback = document.createElement('a');
                 aAudioFallback.href = ep.audioUrl;
                 aAudioFallback.download = `${fileNameBase}${ext}`;
@@ -357,8 +350,6 @@ downloadBtn.addEventListener('click', async () => {
                 aAudioFallback.click();
                 document.body.removeChild(aAudioFallback);
             }
-
-            // Kurze Pause vor dem nächsten Schleifendurchlauf
             await new Promise(r => setTimeout(r, 1000));
         }
     }
