@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Whisper Converter | LingTools</title>
-    <!-- JSZip for Bulk Downloads -->
+    <title>Whisper Converter</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
     <nav class="main-nav">
-        <div class="nav-brand">LingTools</div>
         <div class="nav-tabs">
             <a href="../index.html" class="nav-tab">Home</a>
             <a href="index.html" class="nav-tab active">Whisper Converter</a>
@@ -28,7 +26,6 @@
                     <p class="subtitle">Bulk-Verarbeitung: Paart Whisper-JSON mit Metadaten und strukturiert sie exakt nach structure.py</p>
                 </header>
 
-                <!-- TOGGLE SLIDER -->
                 <div class="format-toggle">
                     <button class="toggle-btn active" data-format="flk">Folker (.flk)</button>
                     <button class="toggle-btn" data-format="xml">Sketch Engine (XML)</button>
@@ -95,7 +92,6 @@
                     <h2>Bulk Upload & Konvertierung</h2>
                     <p class="desc">Markiere in deinem Ordner alle <code>name.json</code> und <code>name_metadata.json</code> Dateien und ziehe sie hierhin. Das Tool paart sie automatisch anhand des Basisnamens.</p>
                     
-                    <!-- HIER IST DER FIX: Das Label umhüllt den ganzen Bereich! -->
                     <label for="file-input" class="upload-area" id="drop-zone">
                         <input type="file" id="file-input" accept=".json" multiple>
                         <strong>Dateien auswählen (.json)</strong>
@@ -125,7 +121,6 @@
         </div>
     </div>
 
-    <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
     <script src="script.js"></script>

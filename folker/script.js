@@ -16,6 +16,7 @@ document.getElementById('audio-file').addEventListener('change', function(e) {
 });
 
 let rawRefXmlString = null, rawHypXmlString = null, globalRefBlocks = [], refSpeakerColors = {};
+let currentActiveRef = new Set();
 const colorPalette = ['#1e3a8a', '#0f766e', '#b45309', '#be185d', '#4338ca', '#0369a1', '#15803d', '#a21caf'];
 
 async function handleFileChange() {
@@ -55,18 +56,26 @@ function runAnalysis() {
     const refData = parseFolkerXML(rawRefXmlString, optsRef), hypData = parseFolkerXML(rawHypXmlString, optsAsr);
     calculateSpeakerMapping(refData, hypData);
 
-    const activeRef = new Set(), activeAsr = new Set();
-    document.querySelectorAll('.ref-spk-cb:checked').forEach(cb => activeRef.add(cb.value));
+    // Filter auslesen, um aktive Sprecher zu identifizieren, ABER wir alignen alles!
+    currentActiveRef = new Set();
+    document.querySelectorAll('.ref-spk-cb:checked').forEach(cb => currentActiveRef.add(cb.value));
+    if(currentActiveRef.size === 0 && document.querySelectorAll('.ref-spk-cb').length === 0) {
+        refData.speakers.forEach(s => currentActiveRef.add(s));
+    }
+    
+    // Für ASR lassen wir die Filterung drin falls man Störgeräusche rausnehmen will,
+    // oder man macht es konsistent auch dort. Ich filtere ASR weiterhin vorab.
+    const activeAsr = new Set();
     document.querySelectorAll('.asr-spk-cb:checked').forEach(cb => activeAsr.add(cb.value));
-    if(activeRef.size === 0) refData.speakers.forEach(s => activeRef.add(s));
-    if(activeAsr.size === 0) hypData.speakers.forEach(s => activeAsr.add(s));
+    if(activeAsr.size === 0 && document.querySelectorAll('.asr-spk-cb').length === 0) hypData.speakers.forEach(s => activeAsr.add(s));
 
-    const finalRefBlocks = refData.blocks.filter(b => activeRef.has(b.speaker)), finalRefWords = [];
-    finalRefBlocks.forEach(b => finalRefWords.push(...b.words));
-    const finalHypBlocks = hypData.blocks.filter(b => activeAsr.has(b.speaker)), finalHypWords = [];
-    finalHypBlocks.forEach(b => finalHypWords.push(...b.words));
+    // Alle Ref Blöcke werden zum Alignment gesendet
+    globalRefBlocks = refData.blocks; 
+    const finalRefWords = globalRefBlocks.flatMap(b => b.words);
+    
+    const finalHypBlocks = hypData.blocks.filter(b => activeAsr.has(b.speaker));
+    const finalHypWords = finalHypBlocks.flatMap(b => b.words);
 
-    globalRefBlocks = finalRefBlocks;
     const costs = { sub: parseInt(document.getElementById('weight-sub').value)||4, del: parseInt(document.getElementById('weight-del').value)||3, ins: parseInt(document.getElementById('weight-ins').value)||3 };
     worker.postMessage({ refWords: finalRefWords, hypWords: finalHypWords, costs });
 }
@@ -149,7 +158,7 @@ const worker = new Worker(URL.createObjectURL(new Blob([`
     self.onmessage = function(e) {
         const { refWords, hypWords, costs } = e.data;
         const len1 = refWords.length, len2 = hypWords.length;
-        if (!len1 && !len2) { postMessage({ wer: 0, subs: 0, ins: 0, dels: 0, alignment: [] }); return; }
+        if (!len1 && !len2) { postMessage({ alignment: [] }); return; }
         const cols = len2 + 1, mat = new Uint32Array((len1 + 1) * cols);
         for(let i=0;i<=len1;i++) mat[i*cols] = i*costs.del;
         for(let j=0;j<=len2;j++) mat[j] = j*costs.ins;
@@ -157,33 +166,50 @@ const worker = new Worker(URL.createObjectURL(new Blob([`
             const m = refWords[i-1].norm === hypWords[j-1].norm;
             mat[i*cols+j] = Math.min(mat[(i-1)*cols+j]+costs.del, mat[i*cols+(j-1)]+costs.ins, mat[(i-1)*cols+(j-1)]+(m?0:costs.sub));
         }
-        let i=len1, j=len2, a=[], s=0, ins=0, d=0;
+        let i=len1, j=len2, a=[];
         while(i>0||j>0) {
             const m = i>0 && j>0 && refWords[i-1].norm === hypWords[j-1].norm;
             if(m && mat[i*cols+j] === mat[(i-1)*cols+(j-1)]) { a.unshift({type:'C',ref:refWords[i-1],hyp:hypWords[j-1]}); i--; j--; }
-            else if(i>0 && j>0 && !m && mat[i*cols+j] === mat[(i-1)*cols+(j-1)]+costs.sub) { a.unshift({type:'S',ref:refWords[i-1],hyp:hypWords[j-1]}); s++; i--; j--; }
-            else if(i>0 && mat[i*cols+j] === mat[(i-1)*cols+j]+costs.del) { a.unshift({type:'D',ref:refWords[i-1],hyp:null}); d++; i--; }
-            else { a.unshift({type:'I',ref:null,hyp:hypWords[j-1], blockFallback: i>0?refWords[i-1].blockIndex:(len1>0?refWords[0].blockIndex:0)}); ins++; j--; }
+            else if(i>0 && j>0 && !m && mat[i*cols+j] === mat[(i-1)*cols+(j-1)]+costs.sub) { a.unshift({type:'S',ref:refWords[i-1],hyp:hypWords[j-1]}); i--; j--; }
+            else if(i>0 && mat[i*cols+j] === mat[(i-1)*cols+j]+costs.del) { a.unshift({type:'D',ref:refWords[i-1],hyp:null}); i--; }
+            else { a.unshift({type:'I',ref:null,hyp:hypWords[j-1], blockFallback: i>0?refWords[i-1].blockIndex:(len1>0?refWords[0].blockIndex:0)}); j--; }
         }
-        postMessage({ wer: len1?((s+ins+d)/len1)*100:0, subs:s, ins, dels:d, alignment:a });
+        postMessage({ alignment:a });
     };
 `], { type: 'application/javascript' })));
 
 worker.onmessage = function(e) {
     document.getElementById('loading').style.display = 'none';
-    const { wer, subs, dels, ins, alignment } = e.data;
-    document.getElementById('wer-score').innerText = wer.toFixed(2) + '%';
-    document.getElementById('stat-s').innerText = subs; document.getElementById('stat-d').innerText = dels; document.getElementById('stat-i').innerText = ins;
+    const { alignment } = e.data;
     
+    let totalN = 0, totalS = 0, totalD = 0, totalI = 0;
     const bMap = new Map(), sC = {}, dC = {}, iC = {};
+    
+    const blockSpeakerMap = {};
+    globalRefBlocks.forEach(b => blockSpeakerMap[b.id] = b.speaker);
+
     alignment.forEach(a => {
         const id = a.ref ? a.ref.blockIndex : a.blockFallback;
         if (!bMap.has(id)) bMap.set(id, []);
         bMap.get(id).push(a);
-        if(a.type === 'S') sC[`${a.ref.orig}➔${a.hyp.orig}`] = (sC[`${a.ref.orig}➔${a.hyp.orig}`]||0)+1;
-        else if(a.type === 'D') dC[a.ref.orig] = (dC[a.ref.orig]||0)+1;
-        else if(a.type === 'I') iC[a.hyp.orig] = (iC[a.hyp.orig]||0)+1;
+        
+        const spk = blockSpeakerMap[id];
+        const isActive = currentActiveRef.has(spk);
+
+        // Nur aktive Sprecher zählen in die WER Statistik
+        if (isActive) {
+            if(a.type === 'C') totalN++;
+            else if(a.type === 'S') { totalN++; totalS++; sC[`${a.ref.orig}➔${a.hyp.orig}`] = (sC[`${a.ref.orig}➔${a.hyp.orig}`]||0)+1; }
+            else if(a.type === 'D') { totalN++; totalD++; dC[a.ref.orig] = (dC[a.ref.orig]||0)+1; }
+            else if(a.type === 'I') { totalI++; iC[a.hyp.orig] = (iC[a.hyp.orig]||0)+1; }
+        }
     });
+
+    const wer = totalN > 0 ? ((totalS + totalD + totalI) / totalN) * 100 : 0;
+    document.getElementById('wer-score').innerText = wer.toFixed(2) + '%';
+    document.getElementById('stat-s').innerText = totalS; 
+    document.getElementById('stat-d').innerText = totalD; 
+    document.getElementById('stat-i').innerText = totalI;
 
     const rl = (m, id) => { const el = document.getElementById(id); el.innerHTML = Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([w,c])=>`<li><span>${w}</span><span class="error-count">${c}x</span></li>`).join('')||'<li class="text-muted">Keine Fehler</li>'; };
     rl(sC, 'top-subs-list'); rl(dC, 'top-dels-list'); rl(iC, 'top-ins-list');
@@ -194,17 +220,23 @@ worker.onmessage = function(e) {
 
     globalRefBlocks.forEach(b => {
         const al = bMap.get(b.id) || [];
+        const isActive = currentActiveRef.has(b.speaker);
+        
         let n=0, s=0, d=0, i=0; al.forEach(x=>{ if(x.type==='C')n++; if(x.type==='S'){n++;s++;} if(x.type==='D'){n++;d++;} if(x.type==='I')i++; });
         const bw = n ? ((s+d+i)/n)*100 : 0, dur = b.endTime - b.startTime;
         
         if (dur>0 && totT>0) {
             const bar = document.createElement('div'); bar.className = 'graph-bar';
             bar.style.width = (dur/totT*100)+'%'; bar.style.height = Math.max(Math.min(bw,100),5)+'%';
-            bar.style.backgroundColor = bw>30?'#ef4444':(bw>10?'#f59e0b':'#22c55e'); bar.title=`${b.speaker} | WER: ${Math.round(bw)}%`;
+            bar.style.backgroundColor = isActive ? (bw>30?'#ef4444':(bw>10?'#f59e0b':'#22c55e')) : '#cbd5e1'; 
+            bar.title=`${b.speaker} | WER: ${Math.round(bw)}%`;
             gCont.appendChild(bar);
         }
 
-        const r = document.createElement('div'); r.className = 'tr-row'; r.dataset.start = b.startTime; r.dataset.end = b.endTime;
+        const r = document.createElement('div'); 
+        r.className = 'tr-row' + (!isActive ? ' ignored-row' : ''); 
+        r.dataset.start = b.startTime; r.dataset.end = b.endTime;
+        
         r.innerHTML = `<div class="td col-start">${formatTimeFolker(b.startTime)}</div><div class="td col-end">${formatTimeFolker(b.endTime)}</div><div class="td col-speaker"><span class="spk-color-box" style="background:${refSpeakerColors[b.speaker]||'#fff'}"></span>${b.speaker}</div>`;
         const tc = document.createElement('div'); tc.className = 'td col-text';
         b.metaTokens.forEach(m => tc.innerHTML += `<span class="token token-meta">${m}</span>`);
