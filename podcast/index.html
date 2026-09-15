@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Podcast Downloader | LingTools</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+    <nav class="main-nav">
+        <div class="nav-brand">LingTools</div>
+        <div class="nav-tabs">
+            <a href="../index.html" class="nav-tab">Home</a>
+            <a href="../whisper/index.html" class="nav-tab">Whisper Converter</a>
+            <a href="../folker/index.html" class="nav-tab">Folker WER Analyzer</a>
+            <a href="index.html" class="nav-tab active">Podcast Downloader</a>
+        </div>
+    </nav>
+
+    <div class="tool-section">
+        <div class="sidebar" style="width: 400px;">
+            <h2 class="sidebar-title">Podcast Quelle</h2>
+            
+            <details class="panel" open>
+                <summary>🔍 iTunes Podcast Suche (Empfohlen)</summary>
+                <div class="panel-content">
+                    <p class="text-muted" style="margin-bottom: 10px;">Suche weltweit nach Podcasts. <strong>Vorteil:</strong> Lädt bis zu 500 Episoden blitzschnell und fehlerfrei über die Apple-Server als sauberes JSON, ohne CORS-Blockaden oder abgeschnittene RSS-Feeds.</p>
+                    <div class="search-box">
+                        <input type="text" id="search-input" placeholder="Z.B. 'Tagesschau' oder 'Linguistics'">
+                        <button id="search-btn" class="btn-primary" style="padding: 0 15px;">Suchen</button>
+                    </div>
+                    <ul class="podcast-results" id="search-results">
+                        <li style="padding: 10px; font-size: 0.85rem; color: #94a3b8; text-align: center;">Keine Suchergebnisse.</li>
+                    </ul>
+                </div>
+            </details>
+
+            <details class="panel">
+                <summary>📂 Lokale RSS-Datei (.xml)</summary>
+                <div class="panel-content">
+                    <p class="text-muted" style="margin-bottom: 10px;">Falls ein Podcast nicht bei iTunes gelistet ist: Rufe die Feed-URL im Browser auf, speichere sie (<code>Strg+S</code>) als .xml und lade sie hier hoch.</p>
+                    <div class="upload-item">
+                        <input type="file" id="rss-file-input" accept=".xml,.rss">
+                    </div>
+                </div>
+            </details>
+
+            <details class="panel">
+                <summary>🔗 Direkter RSS-Feed Link</summary>
+                <div class="panel-content">
+                    <p class="text-muted" style="margin-bottom: 10px;">Kann je nach Hoster durch CORS blockiert werden oder aufgrund von Paginierung nur die letzten 5-10 Folgen liefern.</p>
+                    <div class="search-box" style="margin-bottom: 0;">
+                        <input type="url" id="rss-input" placeholder="https://example.com/feed.xml">
+                        <button id="load-rss-btn" class="btn-secondary" style="padding: 0 15px;">Laden</button>
+                    </div>
+                </div>
+            </details>
+
+            <details class="panel" open>
+                <summary>🛠️ Download-Information</summary>
+                <div class="panel-content">
+                    <p class="text-muted">Beim Klick auf "Herunterladen" wird für jede ausgewählte Episode eine <strong>Metadaten-JSON</strong> generiert und der Download der <strong>Audiodatei</strong> gestartet.</p>
+                    <br>
+                    <p class="text-muted"><strong>Achtung:</strong> Erlaube deinem Browser den Download <em>mehrerer Dateien</em> gleichzeitig (Pop-Up Blockierung aufheben).</p>
+                </div>
+            </details>
+        </div>
+
+        <div class="main-view">
+            <div id="podcast-header" style="display: none; align-items: center; gap: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 10px;">
+                <img id="pod-image" src="" alt="" style="width: 80px; height: 80px; border-radius: 8px;">
+                <div>
+                    <h2 id="pod-title" style="margin-bottom: 5px; color: var(--accent-primary);">Podcast Titel</h2>
+                    <p id="pod-author" class="text-muted">Autor</p>
+                </div>
+                <div style="margin-left: auto;">
+                    <button id="download-btn" class="btn-primary" disabled>Herunterladen (<span id="sel-count">0</span>)</button>
+                </div>
+            </div>
+
+            <div id="loading-indicator" style="display: none; font-weight: 600; color: var(--accent-primary); text-align: center; padding: 40px;">
+                Verarbeite Daten...
+            </div>
+
+            <div style="flex: 1; overflow-y: auto; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: var(--radius);">
+                <table class="episodes-table" id="episodes-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;"><input type="checkbox" id="check-all" title="Alle auswählen"></th>
+                            <th style="width: 120px;">Datum</th>
+                            <th>Episode</th>
+                            <th style="width: 80px;">Audio</th>
+                        </tr>
+                    </thead>
+                    <tbody id="episodes-body">
+                        <!-- Episoden hier -->
+                    </tbody>
+                </table>
+                <div id="no-episodes-msg" style="padding: 40px; text-align: center; color: var(--text-light);">
+                    Bitte nutze die Suche oder lade einen RSS-Feed.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

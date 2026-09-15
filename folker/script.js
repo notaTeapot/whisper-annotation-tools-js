@@ -1,148 +1,5 @@
-// ==========================================
-// NAVIGATION TAB LOGIC
-// ==========================================
-document.querySelectorAll('.nav-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        // Tabs toggeln
-        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        
-        // Sections toggeln
-        document.querySelectorAll('.tool-section').forEach(s => s.classList.remove('active-tool'));
-        document.getElementById(tab.dataset.target).classList.add('active-tool');
-        
-        // Redraw Folker wavesurfer falls der Container vorher versteckt war
-        if(tab.dataset.target === 'folker-tool' && ws) {
-            setTimeout(() => ws.drawBuffer(), 50);
-        }
-    });
-});
-
-// ==========================================
-// TOOL 1: WHISPER CONVERTER LOGIC
-// ==========================================
-let transcriptData = null;
-let metadataObj = {};
-let originalFileName = "export";
-
-const inputTranscript = document.getElementById('file-input-transcript');
-const dropZoneTranscript = document.getElementById('drop-zone-transcript');
-const nameTranscript = document.getElementById('name-transcript');
-const metaKey = document.getElementById('meta-key');
-const metaValue = document.getElementById('meta-value');
-const btnAddMeta = document.getElementById('btn-add-meta');
-const metaJsonTextarea = document.getElementById('meta-json');
-const metaError = document.getElementById('meta-error');
-const actionSection = document.getElementById('action-section');
-const statusMessage = document.getElementById('status-message');
-const btnDownloadFLK = document.getElementById('btn-download-flk');
-const btnDownloadXML = document.getElementById('btn-download-xml');
-
-function setupDropZone(dropZone, fileInput, nameDisplay) {
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); });
-    });
-    ['dragenter', 'dragover'].forEach(eventName => dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover')));
-    ['dragleave', 'drop'].forEach(eventName => dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover')));
-    dropZone.addEventListener('drop', e => {
-        const file = e.dataTransfer.files[0];
-        if (file) handleWhisperFile(file, nameDisplay);
-    });
-    fileInput.addEventListener('change', function() {
-        if (this.files[0]) handleWhisperFile(this.files[0], nameDisplay);
-    });
-}
-setupDropZone(dropZoneTranscript, inputTranscript, nameTranscript);
-
-function handleWhisperFile(file, nameDisplay) {
-    const reader = new FileReader();
-    nameDisplay.textContent = file.name;
-    originalFileName = file.name.replace(/\.[^/.]+$/, "");
-
-    reader.onload = function(e) {
-        try {
-            const parsed = JSON.parse(e.target.result);
-            if (parsed.transcript && parsed.metadata) {
-                transcriptData = parsed.transcript;
-                metadataObj = parsed.metadata; 
-                updateMetaTextarea(); 
-            } else {
-                transcriptData = parsed;
-            }
-            if (transcriptData) {
-                actionSection.classList.remove('hidden');
-            }
-        } catch (error) {
-            alert(`Fehler beim Lesen der Datei ${file.name}. Ungültiges JSON.`);
-        }
-    };
-    reader.readAsText(file);
-}
-
-function updateMetaTextarea() {
-    metaJsonTextarea.value = Object.keys(metadataObj).length ? JSON.stringify(metadataObj, null, 2) : '';
-}
-
-btnAddMeta.addEventListener('click', () => {
-    const k = metaKey.value.trim(), v = metaValue.value.trim();
-    if (k) {
-        metadataObj[k] = v;
-        updateMetaTextarea();
-        metaKey.value = ''; metaValue.value = '';
-        metaError.classList.add('hidden');
-    }
-});
-
-metaJsonTextarea.addEventListener('input', () => {
-    const raw = metaJsonTextarea.value.trim();
-    if (!raw) { metadataObj = {}; metaError.classList.add('hidden'); return; }
-    try {
-        const parsed = JSON.parse(raw);
-        if (typeof parsed === 'object' && !Array.isArray(parsed)) {
-            metadataObj = parsed; metaError.classList.add('hidden');
-        } else throw new Error();
-    } catch (e) { metaError.classList.remove('hidden'); }
-});
-
-function downloadBlob(content, filename, contentType) {
-    const blob = new Blob([content], { type: contentType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
-
-btnDownloadFLK.addEventListener('click', () => {
-    if (!transcriptData) return;
-    downloadBlob(JSON.stringify({ metadata: metadataObj, transcript: transcriptData }, null, 2), `${originalFileName}.flk`, 'application/json');
-});
-
-btnDownloadXML.addEventListener('click', () => {
-    if (!transcriptData) return;
-    let docAttrs = '';
-    for (const [k, v] of Object.entries(metadataObj)) docAttrs += ` ${k}="${String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}"`;
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<corpus>\n  <doc${docAttrs}>\n`;
-    transcriptData.forEach(segment => {
-        xml += `    <u who="${segment.speaker || "UNKNOWN"}" start="${segment.start}" end="${segment.end}">\n`;
-        if (segment.words) {
-            segment.words.forEach(w => {
-                const s = w.score !== undefined ? ` score="${w.score}"` : '';
-                xml += `      <w start="${w.start}" end="${w.end}"${s}>${w.word.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</w>\n`;
-            });
-        }
-        xml += `    </u>\n`;
-    });
-    xml += `  </doc>\n</corpus>`;
-    downloadBlob(xml, `${originalFileName}_sketchengine.xml`, 'application/xml');
-});
-
-
-// ==========================================
-// TOOL 2: FOLKER WER ANALYZER LOGIC
-// ==========================================
 const ws = WaveSurfer.create({
-    container: '#waveform-container', waveColor: '#b5d4eb', progressColor: '#007bff', height: 60, normalize: true, cursorWidth: 2
+    container: '#waveform-container', waveColor: '#93c5fd', progressColor: '#1e3a8a', height: 40, normalize: true, cursorWidth: 2
 });
 const wsRegions = ws.registerPlugin(WaveSurfer.Regions.create());
 let activeRegion = null;
@@ -159,7 +16,7 @@ document.getElementById('audio-file').addEventListener('change', function(e) {
 });
 
 let rawRefXmlString = null, rawHypXmlString = null, globalRefBlocks = [], refSpeakerColors = {};
-const colorPalette = ['#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6'];
+const colorPalette = ['#1e3a8a', '#0f766e', '#b45309', '#be185d', '#4338ca', '#0369a1', '#15803d', '#a21caf'];
 
 async function handleFileChange() {
     const r = document.getElementById('ref-file').files[0], h = document.getElementById('hyp-file').files[0];
@@ -231,7 +88,7 @@ function calculateSpeakerMapping(refData, hypData) {
     });
     const container = document.getElementById('mapping-container');
     const asrSpeakers = Object.keys(mapping).sort();
-    if (!asrSpeakers.length) return container.innerHTML = '<em class="text-muted">Keine ASR-Sprecherdaten gefunden.</em>';
+    if (!asrSpeakers.length) return container.innerHTML = '<em class="text-muted">Keine ASR-Sprecher gefunden.</em>';
     let html = `<table class="mapping-table"><thead><tr><th>ASR Sprecher</th><th>Bester Match in Ref</th></tr></thead><tbody>`;
     asrSpeakers.forEach(asrSpk => {
         let bestRef = "Kein Match", bestPct = 0;
@@ -343,7 +200,7 @@ worker.onmessage = function(e) {
         if (dur>0 && totT>0) {
             const bar = document.createElement('div'); bar.className = 'graph-bar';
             bar.style.width = (dur/totT*100)+'%'; bar.style.height = Math.max(Math.min(bw,100),5)+'%';
-            bar.style.backgroundColor = bw>30?'#ea4335':(bw>10?'#fbbc04':'#34a853'); bar.title=`${b.speaker} | WER: ${Math.round(bw)}%`;
+            bar.style.backgroundColor = bw>30?'#ef4444':(bw>10?'#f59e0b':'#22c55e'); bar.title=`${b.speaker} | WER: ${Math.round(bw)}%`;
             gCont.appendChild(bar);
         }
 
@@ -370,7 +227,7 @@ ws.on('timeupdate', t => {
             if (!r.classList.contains('active')) {
                 document.querySelectorAll('.tr-row.active').forEach(x => x.classList.remove('active'));
                 r.classList.add('active'); r.scrollIntoView({behavior:'smooth', block:'center'});
-                if(!activeRegion) activeRegion = wsRegions.addRegion({start:s, end:e, color:'rgba(51,153,255,0.3)', drag:false, resize:false});
+                if(!activeRegion) activeRegion = wsRegions.addRegion({start:s, end:e, color:'rgba(30,58,138,0.2)', drag:false, resize:false});
                 else activeRegion.setOptions({start:s, end:e});
             }
         }

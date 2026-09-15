@@ -4,255 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Linguistic Tools Hub</title>
-    
-    <!-- Prism.js CSS (Clean Light/Dark Theme) -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
-    
-    <!-- Wavesurfer.js für Folker -->
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
-    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Top Navigation -->
     <nav class="main-nav">
         <div class="nav-brand">LingTools</div>
         <div class="nav-tabs">
-            <button class="nav-tab active" data-target="whisper-tool">Whisper Converter</button>
-            <button class="nav-tab" data-target="folker-tool">Folker WER Analyzer</button>
+            <a href="index.html" class="nav-tab active">Home</a>
+            <a href="whisper/index.html" class="nav-tab">Whisper Converter</a>
+            <a href="folker/index.html" class="nav-tab">Folker WER Analyzer</a>
+            <a href="podcast/index.html" class="nav-tab">Podcast Downloader</a>
         </div>
     </nav>
 
-    <!-- TOOL 1: WHISPER CONVERTER -->
-    <div id="whisper-tool" class="tool-section active-tool scrollable">
-        <div class="whisper-container">
+    <div class="scrollable">
+        <div class="container">
             <header class="tool-header">
-                <h1>Whisper Annotation Converter</h1>
-                <p class="subtitle">Konvertiere Whisper-JSON sauber in .flk oder Sketch Engine XML</p>
+                <h1>Linguistic Tools Hub</h1>
+                <p class="subtitle">Lokale Werkzeuge zur Verarbeitung und Analyse sprachlicher Daten.</p>
             </header>
 
-            <section class="guide-section card">
-                <h2>Wie die Konvertierung funktioniert</h2>
-                <div class="flow-container">
-                    
-                    <div class="code-block">
-                        <h3>1. Input (Whisper) & Metadaten</h3>
-                        <p class="desc">Dein Transkript wird mit deinen Metadaten (z.B. Zeit) verknüpft.</p>
-                        <pre><code class="language-json">{
-  "metadata": {
-    "title": "Interview",
-    "time": "18:20"
-  },
-  "whisper_data": [
-    { "word": "Und", "speaker": "SPEAKER_00" }
-  ]
-}</code></pre>
-                    </div>
-                    
-                    <div class="arrow">➔</div>
-                    
-                    <div class="outputs-container">
-                        <div class="code-block">
-                            <h3>Output A: .flk Datei</h3>
-                            <p class="desc">Alles wird in einem JSON-Objekt zusammengefasst.</p>
-                            <pre><code class="language-json">{
-  "metadata": {
-    "title": "Interview",
-    "time": "18:20"
-  },
-  "transcript": [
-    { "word": "Und", "speaker": "SPEAKER_00" }
-  ]
-}</code></pre>
-                        </div>
-                        <div class="code-block">
-                            <h3>Output B: Sketch Engine XML</h3>
-                            <p class="desc">Metadaten werden zu Attributen im &lt;doc&gt;-Tag.</p>
-                            <pre><code class="language-xml">&lt;doc title="Interview" time="18:20"&gt;
-  &lt;u who="SPEAKER_00"&gt;
-    &lt;w&gt;Und&lt;/w&gt;
-  &lt;/u&gt;
-&lt;/doc&gt;</code></pre>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <div class="upload-grid">
+                <a href="whisper/index.html" class="card card-link">
+                    <h2>Whisper Annotation Converter</h2>
+                    <p class="desc">Strukturiere rohe Whisper-JSON Daten in Sätze und Paragraphen. Generiert formatiertes Folker-XML (.flk) oder XML für die Sketch Engine. Basiert auf der originalen structure.py Logik.</p>
+                </a>
 
-            <section class="upload-section card">
-                <h2>Dateien & Daten vorbereiten</h2>
-                <div class="upload-grid">
-                    <div class="upload-column">
-                        <h3>1. Transkript hochladen</h3>
-                        <div class="upload-area" id="drop-zone-transcript">
-                            <input type="file" id="file-input-transcript" accept=".json,.flk">
-                            <label for="file-input-transcript">Datei auswählen (.json / .flk)</label>
-                            <p>oder per Drag & Drop hier ablegen</p>
-                            <span class="file-name" id="name-transcript"></span>
-                        </div>
-                    </div>
+                <a href="folker/index.html" class="card card-link">
+                    <h2>Folker WER Analyzer</h2>
+                    <p class="desc">Diarization & Alignment: Vergleiche ein Referenz-Transkript mit einer ASR-Hypothese (.flk), berechne die Word Error Rate (WER) und visualisiere Fehler synchron zur Audiodatei.</p>
+                </a>
 
-                    <div class="upload-column metadata-editor">
-                        <h3>2. Metadaten (Optional)</h3>
-                        <div class="kv-inputs">
-                            <input type="text" id="meta-key" placeholder="Key (z.B. time)">
-                            <input type="text" id="meta-value" placeholder="Value (z.B. 18:20)">
-                            <button id="btn-add-meta" type="button" class="btn-small">Add</button>
-                        </div>
-                        <div class="json-area-container">
-                            <textarea id="meta-json" spellcheck="false" placeholder='{\n  "title": "Interview",\n  "time": "18:20"\n}'></textarea>
-                            <span id="meta-error" class="error hidden">Ungültiges JSON-Format!</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="action-section" class="hidden">
-                    <p id="status-message" class="success">✓ Daten erfolgreich geladen. Wähle das gewünschte Export-Format:</p>
-                    <div class="button-group">
-                        <button id="btn-download-flk" class="btn-secondary">Als .flk exportieren</button>
-                        <button id="btn-download-xml" class="btn-primary">Als XML (Sketch Engine) exportieren</button>
-                    </div>
-                </div>
-            </section>
+                <a href="podcast/index.html" class="card card-link">
+                    <h2>Podcast RSS Downloader</h2>
+                    <p class="desc">Suche in der globalen Podcast-Datenbank, extrahiere Episoden und generiere automatisierte JSON-Metadaten-Pakete sowie Bulk-Download-Skripte für Audio-Korpora.</p>
+                </a>
+            </div>
             
             <footer class="site-footer">
-                <strong>Impressum:</strong> Vasco Alexander Sahlbach | Prager Str 1 D, 01069 Dresden | <a href="mailto:couldbeateapot@gmail.com">couldbeateapot@gmail.com</a>
+                <div><strong>Impressum:</strong> Vasco Alexander Sahlbach | Prager Str 1 D, 01069 Dresden | <a href="mailto:couldbeateapot@gmail.com">couldbeateapot@gmail.com</a></div>
+                <div class="privacy-note">
+                    <strong>Datenschutzhinweis:</strong> Alle Berechnungen und Dateiverarbeitungen finden lokal in Ihrem Browser statt. Es werden keine Audios, Texte oder Metadaten an einen Server übermittelt. Durch die Nutzung externer Skripte für die Darstellung kann beim Seitenaufruf Ihre IP-Adresse an den jeweiligen CDN-Anbieter übertragen werden.
+                </div>
             </footer>
         </div>
     </div>
-
-    <!-- TOOL 2: FOLKER WER ANALYZER -->
-    <div id="folker-tool" class="tool-section">
-        <div class="sidebar">
-            <h2 class="sidebar-title">Folker WER Analyzer</h2>
-            
-            <details class="panel" open>
-                <summary>📂 Dateien hochladen</summary>
-                <div class="panel-content">
-                    <div class="upload-item">
-                        <label>1. Ref-Transkript (.flk)</label>
-                        <input type="file" id="ref-file" accept=".flk,.xml" onchange="handleFileChange()">
-                    </div>
-                    <div class="upload-item">
-                        <label>2. ASR-Transkript (.flk)</label>
-                        <input type="file" id="hyp-file" accept=".flk,.xml" onchange="handleFileChange()">
-                    </div>
-                    <div class="upload-item">
-                        <label>3. Audio-Datei (Optional)</label>
-                        <input type="file" id="audio-file" accept="audio/*">
-                    </div>
-                </div>
-            </details>
-
-            <details class="panel" open>
-                <summary>⚙️ Prüfregeln & Normalisierung</summary>
-                <div class="panel-content">
-                    <table class="rules-table">
-                        <thead>
-                            <tr><th>Regel</th><th>Ref</th><th>ASR</th></tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Interpunktion entfernen</td>
-                                <td><input type="checkbox" id="ref-punct" checked onchange="runAnalysis()"></td>
-                                <td><input type="checkbox" id="asr-punct" checked onchange="runAnalysis()"></td>
-                            </tr>
-                            <tr>
-                                <td>Nur Kleinschreibung</td>
-                                <td><input type="checkbox" id="ref-case" checked onchange="runAnalysis()"></td>
-                                <td><input type="checkbox" id="asr-case" checked onchange="runAnalysis()"></td>
-                            </tr>
-                            <tr>
-                                <td>GAT2 entfernen ((...))</td>
-                                <td><input type="checkbox" id="ref-gat" checked onchange="runAnalysis()"></td>
-                                <td><input type="checkbox" id="asr-gat" checked onchange="runAnalysis()"></td>
-                            </tr>
-                            <tr>
-                                <td>Bindestriche zu Leerzeichen</td>
-                                <td><input type="checkbox" id="ref-hyphen" onchange="runAnalysis()"></td>
-                                <td><input type="checkbox" id="asr-hyphen" checked onchange="runAnalysis()"></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </details>
-
-            <details class="panel">
-                <summary>⚖️ Alignment Methode</summary>
-                <div class="panel-content">
-                    <select id="alignment-preset" class="form-select" onchange="changeAlignmentPreset()">
-                        <option value="nist">NIST Sclite (Standard)</option>
-                        <option value="lev">Standard Levenshtein</option>
-                    </select>
-                    <div class="weight-grid">
-                        <label>Sub: <input type="number" id="weight-sub" value="4" min="1" max="10" onchange="setCustomAlignment()"></label>
-                        <label>Del: <input type="number" id="weight-del" value="3" min="1" max="10" onchange="setCustomAlignment()"></label>
-                        <label>Ins: <input type="number" id="weight-ins" value="3" min="1" max="10" onchange="setCustomAlignment()"></label>
-                    </div>
-                </div>
-            </details>
-
-            <details class="panel" open>
-                <summary>👥 Sprecher-Auswahl</summary>
-                <div class="panel-content">
-                    <div class="speaker-split" id="speaker-settings">
-                        <em class="text-muted">Lade Transkripte hoch, um Sprecher zu filtern.</em>
-                    </div>
-                </div>
-            </details>
-
-            <details class="panel">
-                <summary>🤖 Sprecher-Mapping</summary>
-                <div class="panel-content" id="mapping-container">
-                    <em class="text-muted">Wartet auf Dateien...</em>
-                </div>
-            </details>
-
-            <details class="panel">
-                <summary>📊 Häufigste Fehler</summary>
-                <div class="panel-content error-grid">
-                    <div class="error-col"><h4 style="color: var(--sub-text);">Substitutionen</h4><ul class="error-list" id="top-subs-list"></ul></div>
-                    <div class="error-col"><h4 style="color: var(--del-text);">Deletionen</h4><ul class="error-list" id="top-dels-list"></ul></div>
-                    <div class="error-col"><h4 style="color: var(--ins-text);">Insertionen</h4><ul class="error-list" id="top-ins-list"></ul></div>
-                </div>
-            </details>
-        </div>
-
-        <div class="main-view">
-            <div id="loading">Berechne Daten...</div>
-            <div class="player-container" id="player-row" style="display: none;">
-                <div class="player-top">
-                    <button class="play-btn" id="play-pause-btn">▶</button>
-                    <div class="waveform-col">
-                        <div id="waveform-container"></div>
-                        <div id="wer-graph-container"></div>
-                    </div>
-                </div>
-                <div class="stats-row">
-                    <div class="stat-box stat-wer"><span>WER Gesamt:</span> <span id="wer-score">0%</span></div>
-                    <div class="stat-box stat-sub"><span>Substitutionen:</span> <span id="stat-s">0</span></div>
-                    <div class="stat-box stat-del"><span>Deletionen:</span> <span id="stat-d">0</span></div>
-                    <div class="stat-box stat-ins"><span>Insertionen:</span> <span id="stat-i">0</span></div>
-                </div>
-            </div>
-
-            <div class="editor-container">
-                <div class="tr-header">
-                    <div class="th col-start">Start</div>
-                    <div class="th col-end">Ende</div>
-                    <div class="th col-speaker">Sprecher</div>
-                    <div class="th col-text">Transkriptionstext</div>
-                </div>
-                <div class="tr-body" id="transcript-body">
-                    <div style="padding: 20px; text-align: center; color: #888;">Bitte lade ein Referenz- und ASR-Transkript hoch.</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
-    <script src="script.js"></script>
 </body>
 </html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whisper Converter | LingTools</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+    <nav class="main-nav">
+        <div class="nav-brand">LingTools</div>
+        <div class="nav-tabs">
+            <a href="../index.html" class="nav-tab">Home</a>
+            <a href="index.html" class="nav-tab active">Whisper Converter</a>
+            <a href="../folker/index.html" class="nav-tab">Folker WER Analyzer</a>
+        </div>
+    </nav>
+
+    <div class="tool-section">
+        <div class="scrollable">
+            <div class="container">
+                <header class="tool-header">
+                    <h1>Whisper Annotation Converter</h1>
+                    <p class="subtitle">Strukturiere Whisper-JSON in Sätze und Paragraphen für FLK oder Sketch Engine</p>
+                </header>
+
+                <section class="card">
+                    <h2>Strukturierungs-Logik (structure.py)</h2>
+                    <div class="guide-grid">
+                        <div class="code-block">
+                            <h3>Input (Whisper JSON)</h3>
+                            <p class="desc">Transkript wird eingelesen und nach Sprechern und Pausen gruppiert.</p>
+                            <pre><code class="language-json">{
+  "metadata": { "name": "Tape 1", "date": "2024-01-01" },
+  "speakers": [
+    { "text": "Und ", "timestamp": [0.0, 1.0], "speaker": "SPK_0" },
+    { "text": "dann.", "timestamp": [1.0, 1.5], "speaker": "SPK_0" }
+  ]
+}</code></pre>
+                        </div>
+                        
+                        <div class="code-block">
+                            <h3>Output: .flk (Folker XML)</h3>
+                            <p class="desc">Generiert eine standardkonforme Folker-Datei inkl. Timeline.</p>
+                            <pre><code class="language-xml">&lt;folker-transcription&gt;
+  &lt;timeline&gt;
+    &lt;timepoint timepoint-id="TLI_1" absolute-time="0" /&gt;
+  &lt;/timeline&gt;
+  &lt;contribution speaker-reference="SPK_0"&gt;
+    &lt;unparsed&gt;Und dann.&lt;/unparsed&gt;
+  &lt;/contribution&gt;
+&lt;/folker-transcription&gt;</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card">
+                    <h2>Datenverarbeitung</h2>
+                    <div class="upload-grid">
+                        <div class="upload-column">
+                            <h3>1. Transkript hochladen</h3>
+                            <div class="upload-area" id="drop-zone-transcript">
+                                <input type="file" id="file-input-transcript" accept=".json">
+                                <label for="file-input-transcript">Datei auswählen (.json)</label>
+                                <p>oder per Drag & Drop hier ablegen</p>
+                                <span class="file-name" id="name-transcript"></span>
+                            </div>
+                        </div>
+
+                        <div class="upload-column metadata-editor">
+                            <h3>2. Metadaten (Optional)</h3>
+                            <div class="kv-inputs">
+                                <input type="text" id="meta-key" placeholder="Schlüssel (z.B. name)">
+                                <input type="text" id="meta-value" placeholder="Wert (z.B. Tape 1)">
+                                <button id="btn-add-meta" type="button" class="btn-small">Hinzufügen</button>
+                            </div>
+                            <div class="json-area-container">
+                                <textarea id="meta-json" spellcheck="false" placeholder='{\n  "name": "Interview_1",\n  "date": "2024-01-01"\n}'></textarea>
+                                <span id="meta-error" class="error hidden">Ungültiges JSON-Format!</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="action-section" class="hidden">
+                        <p id="status-message" class="success">Daten erfolgreich geladen. Wähle das gewünschte Export-Format:</p>
+                        <div class="button-group">
+                            <button id="btn-download-flk" class="btn-secondary">Als .flk speichern</button>
+                            <button id="btn-download-xml" class="btn-primary">Als XML (Sketch Engine)</button>
+                        </div>
+                    </div>
+                </section>
+                
+                <footer class="site-footer">
+                    <div><strong>Impressum:</strong> Vasco Alexander Sahlbach | Prager Str 1 D, 01069 Dresden | <a href="mailto:couldbeateapot@gmail.com">couldbeateapot@gmail.com</a></div>
+                    <div class="privacy-note">Alle Daten werden lokal in Ihrem Browser verarbeitet. Es findet kein Upload statt.</div>
+                </footer>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

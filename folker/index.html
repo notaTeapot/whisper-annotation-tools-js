@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Folker Analyzer | LingTools</title>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+    <nav class="main-nav">
+        <div class="nav-brand">LingTools</div>
+        <div class="nav-tabs">
+            <a href="../index.html" class="nav-tab">Home</a>
+            <a href="../whisper/index.html" class="nav-tab">Whisper Converter</a>
+            <a href="index.html" class="nav-tab active">Folker WER Analyzer</a>
+        </div>
+    </nav>
+
+    <div class="tool-section">
+        <div class="sidebar">
+            <h2 class="sidebar-title">Parametrisierung</h2>
+            
+            <details class="panel" open>
+                <summary>📂 Eingabedaten</summary>
+                <div class="panel-content">
+                    <div class="upload-item">
+                        <label>1. Ref-Transkript (.flk)</label>
+                        <input type="file" id="ref-file" accept=".flk,.xml" onchange="handleFileChange()">
+                    </div>
+                    <div class="upload-item">
+                        <label>2. ASR-Transkript (.flk)</label>
+                        <input type="file" id="hyp-file" accept=".flk,.xml" onchange="handleFileChange()">
+                    </div>
+                    <div class="upload-item">
+                        <label>3. Audiodatei (Optional)</label>
+                        <input type="file" id="audio-file" accept="audio/*">
+                    </div>
+                </div>
+            </details>
+
+            <details class="panel" open>
+                <summary>⚙️ Normalisierung</summary>
+                <div class="panel-content">
+                    <table class="rules-table">
+                        <thead>
+                            <tr><th>Regel</th><th>Ref</th><th>ASR</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Interpunktion entfernen</td>
+                                <td><input type="checkbox" id="ref-punct" checked onchange="runAnalysis()"></td>
+                                <td><input type="checkbox" id="asr-punct" checked onchange="runAnalysis()"></td>
+                            </tr>
+                            <tr>
+                                <td>Kleinschreibung forcieren</td>
+                                <td><input type="checkbox" id="ref-case" checked onchange="runAnalysis()"></td>
+                                <td><input type="checkbox" id="asr-case" checked onchange="runAnalysis()"></td>
+                            </tr>
+                            <tr>
+                                <td>GAT2-Tags filtern ((...))</td>
+                                <td><input type="checkbox" id="ref-gat" checked onchange="runAnalysis()"></td>
+                                <td><input type="checkbox" id="asr-gat" checked onchange="runAnalysis()"></td>
+                            </tr>
+                            <tr>
+                                <td>Bindestriche zu Leerz.</td>
+                                <td><input type="checkbox" id="ref-hyphen" onchange="runAnalysis()"></td>
+                                <td><input type="checkbox" id="asr-hyphen" checked onchange="runAnalysis()"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+
+            <details class="panel">
+                <summary>⚖️ Alignment</summary>
+                <div class="panel-content">
+                    <select id="alignment-preset" class="form-select" onchange="changeAlignmentPreset()">
+                        <option value="nist">NIST Sclite (Standard)</option>
+                        <option value="lev">Levenshtein-Distanz</option>
+                    </select>
+                    <div class="weight-grid">
+                        <label>Sub: <input type="number" id="weight-sub" value="4" min="1" max="10" onchange="setCustomAlignment()"></label>
+                        <label>Del: <input type="number" id="weight-del" value="3" min="1" max="10" onchange="setCustomAlignment()"></label>
+                        <label>Ins: <input type="number" id="weight-ins" value="3" min="1" max="10" onchange="setCustomAlignment()"></label>
+                    </div>
+                </div>
+            </details>
+
+            <details class="panel" open>
+                <summary>👥 Sprecher</summary>
+                <div class="panel-content">
+                    <div class="speaker-split" id="speaker-settings">
+                        <em class="text-muted">Transkripte erforderlich.</em>
+                    </div>
+                </div>
+            </details>
+
+            <details class="panel">
+                <summary>🤖 Sprecher-Mapping</summary>
+                <div class="panel-content" id="mapping-container">
+                    <em class="text-muted">Wartet auf Dateien...</em>
+                </div>
+            </details>
+
+            <details class="panel">
+                <summary>📊 Fehler-Statistik (Top 5)</summary>
+                <div class="panel-content error-grid">
+                    <div class="error-col"><h4 style="color: var(--sub-text);">Substitutionen</h4><ul class="error-list" id="top-subs-list"></ul></div>
+                    <div class="error-col"><h4 style="color: var(--del-text);">Deletionen</h4><ul class="error-list" id="top-dels-list"></ul></div>
+                    <div class="error-col"><h4 style="color: var(--ins-text);">Insertionen</h4><ul class="error-list" id="top-ins-list"></ul></div>
+                </div>
+            </details>
+            
+            <footer style="padding: 15px; text-align: center; color: var(--text-light); font-size: 0.75rem; border-top: 1px solid var(--border-color);">
+                Lokale Ausführung. Keine Datenübertragung.
+            </footer>
+        </div>
+
+        <div class="main-view">
+            <div id="loading">Analysiere Alignment...</div>
+            <div class="player-container" id="player-row" style="display: none;">
+                <div class="player-top">
+                    <button class="play-btn" id="play-pause-btn">▶</button>
+                    <div class="waveform-col">
+                        <div id="waveform-container"></div>
+                        <div id="wer-graph-container"></div>
+                    </div>
+                </div>
+                <div class="stats-row">
+                    <div class="stat-box stat-wer"><span>WER:</span> <span id="wer-score">0%</span></div>
+                    <div class="stat-box stat-sub"><span>Sub:</span> <span id="stat-s">0</span></div>
+                    <div class="stat-box stat-del"><span>Del:</span> <span id="stat-d">0</span></div>
+                    <div class="stat-box stat-ins"><span>Ins:</span> <span id="stat-i">0</span></div>
+                </div>
+            </div>
+
+            <div class="editor-container">
+                <div class="tr-header">
+                    <div class="th col-start">Start</div>
+                    <div class="th col-end">Ende</div>
+                    <div class="th col-speaker">Sprecher</div>
+                    <div class="th col-text">Transkription</div>
+                </div>
+                <div class="tr-body" id="transcript-body">
+                    <div style="padding: 20px; text-align: center; color: var(--text-light); font-size: 0.9rem;">Bitte laden Sie ein Referenz- und ein ASR-Transkript hoch, um den Vergleich zu starten.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="script.js"></script>
+</body>
+</html>
