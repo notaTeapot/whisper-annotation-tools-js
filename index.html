@@ -24,27 +24,27 @@
                 <p class="subtitle">Lokale Werkzeuge zur Verarbeitung und Analyse sprachlicher Daten.</p>
             </header>
 
-            <div class="upload-grid">
+            <div class="upload-grid" style="grid-template-columns: 1fr;">
                 <a href="whisper/index.html" class="card card-link">
-                    <h2>Whisper Annotation Converter</h2>
-                    <p class="desc">Strukturiere rohe Whisper-JSON Daten in Sätze und Paragraphen. Generiert formatiertes Folker-XML (.flk) oder XML für die Sketch Engine. Basiert auf der originalen structure.py Logik.</p>
+                    <h2>Whisper Annotation Converter (Bulk Processing)</h2>
+                    <p class="desc">Strukturiere hunderte rohe Whisper-JSON Daten gleichzeitig in Sätze und Paragraphen. Verknüpft automatisch Metadaten und generiert Folker-XML (.flk) oder Sketch Engine Korpora als ZIP-Archiv.</p>
                 </a>
 
                 <a href="folker/index.html" class="card card-link">
                     <h2>Folker WER Analyzer</h2>
-                    <p class="desc">Diarization & Alignment: Vergleiche ein Referenz-Transkript mit einer ASR-Hypothese (.flk), berechne die Word Error Rate (WER) und visualisiere Fehler synchron zur Audiodatei.</p>
+                    <p class="desc">Vergleiche ein Referenz-Transkript mit einer ASR-Hypothese (.flk), berechne die Word Error Rate (WER) und visualisiere Fehler synchron zur Audiodatei.</p>
                 </a>
 
                 <a href="podcast/index.html" class="card card-link">
                     <h2>Podcast RSS Downloader</h2>
-                    <p class="desc">Suche in der globalen Podcast-Datenbank, extrahiere Episoden und generiere automatisierte JSON-Metadaten-Pakete sowie Bulk-Download-Skripte für Audio-Korpora.</p>
+                    <p class="desc">Suche in der globalen Podcast-Datenbank, extrahiere Episoden und generiere automatisierte JSON-Metadaten-Pakete sowie direkte Audio-Downloads.</p>
                 </a>
             </div>
             
             <footer class="site-footer">
                 <div><strong>Impressum:</strong> Vasco Alexander Sahlbach | Prager Str 1 D, 01069 Dresden | <a href="mailto:couldbeateapot@gmail.com">couldbeateapot@gmail.com</a></div>
                 <div class="privacy-note">
-                    <strong>Datenschutzhinweis:</strong> Alle Berechnungen und Dateiverarbeitungen finden lokal in Ihrem Browser statt. Es werden keine Audios, Texte oder Metadaten an einen Server übermittelt. Durch die Nutzung externer Skripte für die Darstellung kann beim Seitenaufruf Ihre IP-Adresse an den jeweiligen CDN-Anbieter übertragen werden.
+                    <strong>Datenschutzhinweis:</strong> Alle Berechnungen und Dateiverarbeitungen finden lokal in Ihrem Browser statt. Es werden keine Audios, Texte oder Metadaten an einen Server übermittelt. Durch die Nutzung externer Skripte (Prism.js, Wavesurfer) für die Darstellung kann beim Seitenaufruf Ihre IP-Adresse an den jeweiligen CDN-Anbieter übertragen werden.
                 </div>
             </footer>
         </div>
