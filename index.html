@@ -5,14 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Linguistic Tools Hub</title>
     
-    <!-- Prism.js CSS für Syntax Highlighting -->
+    <!-- Prism.js CSS (Clean Light/Dark Theme) -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
     
-    <!-- Wavesurfer.js für die Audio-Visualisierung (Folker) -->
+    <!-- Wavesurfer.js für Folker -->
     <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
     <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
     
-    <!-- Eigenes CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -20,41 +19,60 @@
     <nav class="main-nav">
         <div class="nav-brand">LingTools</div>
         <div class="nav-tabs">
-            <button class="nav-tab active" data-target="whisper-tool">Whisper XML Converter</button>
+            <button class="nav-tab active" data-target="whisper-tool">Whisper Converter</button>
             <button class="nav-tab" data-target="folker-tool">Folker WER Analyzer</button>
         </div>
     </nav>
 
     <!-- TOOL 1: WHISPER CONVERTER -->
-    <div id="whisper-tool" class="tool-section active-tool">
+    <div id="whisper-tool" class="tool-section active-tool scrollable">
         <div class="whisper-container">
             <header class="tool-header">
                 <h1>Whisper Annotation Converter</h1>
-                <p class="subtitle">Konvertiere Whisper-JSON in .flk oder Sketch Engine XML</p>
+                <p class="subtitle">Konvertiere Whisper-JSON sauber in .flk oder Sketch Engine XML</p>
             </header>
 
             <section class="guide-section card">
                 <h2>Wie die Konvertierung funktioniert</h2>
                 <div class="flow-container">
+                    
                     <div class="code-block">
-                        <h3>1. Input: Whisper JSON</h3>
+                        <h3>1. Input (Whisper) & Metadaten</h3>
+                        <p class="desc">Dein Transkript wird mit deinen Metadaten (z.B. Zeit) verknüpft.</p>
                         <pre><code class="language-json">{
-  "start": 334.5,
-  "end": 338.3,
-  "text": "Und es war...",
-  "words": [ { "word": "Und", "speaker": "SPEAKER_00" } ]
+  "metadata": {
+    "title": "Interview",
+    "time": "18:20"
+  },
+  "whisper_data": [
+    { "word": "Und", "speaker": "SPEAKER_00" }
+  ]
 }</code></pre>
                     </div>
+                    
                     <div class="arrow">➔</div>
+                    
                     <div class="outputs-container">
-                        <div class="code-block output-block">
+                        <div class="code-block">
                             <h3>Output A: .flk Datei</h3>
-                            <pre><code class="language-json">{"metadata": {...}, "transcript": [...]}</code></pre>
+                            <p class="desc">Alles wird in einem JSON-Objekt zusammengefasst.</p>
+                            <pre><code class="language-json">{
+  "metadata": {
+    "title": "Interview",
+    "time": "18:20"
+  },
+  "transcript": [
+    { "word": "Und", "speaker": "SPEAKER_00" }
+  ]
+}</code></pre>
                         </div>
-                        <div class="code-block output-block">
+                        <div class="code-block">
                             <h3>Output B: Sketch Engine XML</h3>
-                            <pre><code class="language-xml">&lt;doc title="..."&gt;
-  &lt;u who="SPEAKER_00"&gt;&lt;w&gt;Und&lt;/w&gt;&lt;/u&gt;
+                            <p class="desc">Metadaten werden zu Attributen im &lt;doc&gt;-Tag.</p>
+                            <pre><code class="language-xml">&lt;doc title="Interview" time="18:20"&gt;
+  &lt;u who="SPEAKER_00"&gt;
+    &lt;w&gt;Und&lt;/w&gt;
+  &lt;/u&gt;
 &lt;/doc&gt;</code></pre>
                         </div>
                     </div>
@@ -62,14 +80,14 @@
             </section>
 
             <section class="upload-section card">
-                <h2>Daten & Metadaten</h2>
+                <h2>Dateien & Daten vorbereiten</h2>
                 <div class="upload-grid">
                     <div class="upload-column">
-                        <h3>1. Whisper-Daten laden</h3>
+                        <h3>1. Transkript hochladen</h3>
                         <div class="upload-area" id="drop-zone-transcript">
                             <input type="file" id="file-input-transcript" accept=".json,.flk">
                             <label for="file-input-transcript">Datei auswählen (.json / .flk)</label>
-                            <p>oder Drag & Drop</p>
+                            <p>oder per Drag & Drop hier ablegen</p>
                             <span class="file-name" id="name-transcript"></span>
                         </div>
                     </div>
@@ -77,40 +95,34 @@
                     <div class="upload-column metadata-editor">
                         <h3>2. Metadaten (Optional)</h3>
                         <div class="kv-inputs">
-                            <input type="text" id="meta-key" placeholder="Key (z.B. title)">
-                            <input type="text" id="meta-value" placeholder="Value (z.B. Video 1)">
-                            <button id="btn-add-meta" type="button" class="btn-small">Hinzufügen</button>
+                            <input type="text" id="meta-key" placeholder="Key (z.B. time)">
+                            <input type="text" id="meta-value" placeholder="Value (z.B. 18:20)">
+                            <button id="btn-add-meta" type="button" class="btn-small">Add</button>
                         </div>
                         <div class="json-area-container">
-                            <textarea id="meta-json" rows="5" spellcheck="false" placeholder='{\n  "title": "Mein Video"\n}'></textarea>
-                            <span id="meta-error" class="error hidden">Ungültiges JSON!</span>
+                            <textarea id="meta-json" spellcheck="false" placeholder='{\n  "title": "Interview",\n  "time": "18:20"\n}'></textarea>
+                            <span id="meta-error" class="error hidden">Ungültiges JSON-Format!</span>
                         </div>
                     </div>
                 </div>
 
                 <div id="action-section" class="hidden">
-                    <p id="status-message" class="success">Daten bereit. Wähle das Zielformat:</p>
+                    <p id="status-message" class="success">✓ Daten erfolgreich geladen. Wähle das gewünschte Export-Format:</p>
                     <div class="button-group">
                         <button id="btn-download-flk" class="btn-secondary">Als .flk exportieren</button>
-                        <button id="btn-download-xml" class="btn-primary">Als Sketch Engine XML</button>
+                        <button id="btn-download-xml" class="btn-primary">Als XML (Sketch Engine) exportieren</button>
                     </div>
                 </div>
             </section>
             
             <footer class="site-footer">
-                <div class="impressum">
-                    <strong>Impressum</strong><br>
-                    Vasco Alexander Sahlbach<br>
-                    Prager Str 1 D, 01069 Dresden<br>
-                    E-Mail: <a href="mailto:couldbeateapot@gmail.com">couldbeateapot@gmail.com</a>
-                </div>
+                <strong>Impressum:</strong> Vasco Alexander Sahlbach | Prager Str 1 D, 01069 Dresden | <a href="mailto:couldbeateapot@gmail.com">couldbeateapot@gmail.com</a>
             </footer>
         </div>
     </div>
 
     <!-- TOOL 2: FOLKER WER ANALYZER -->
     <div id="folker-tool" class="tool-section">
-        <!-- Sidebar -->
         <div class="sidebar">
             <h2 class="sidebar-title">Folker WER Analyzer</h2>
             
@@ -134,7 +146,7 @@
 
             <details class="panel" open>
                 <summary>⚙️ Prüfregeln & Normalisierung</summary>
-                <div class="panel-content" style="padding: 10px;">
+                <div class="panel-content">
                     <table class="rules-table">
                         <thead>
                             <tr><th>Regel</th><th>Ref</th><th>ASR</th></tr>
@@ -151,7 +163,7 @@
                                 <td><input type="checkbox" id="asr-case" checked onchange="runAnalysis()"></td>
                             </tr>
                             <tr>
-                                <td>GAT2 entfernen ((hustet))</td>
+                                <td>GAT2 entfernen ((...))</td>
                                 <td><input type="checkbox" id="ref-gat" checked onchange="runAnalysis()"></td>
                                 <td><input type="checkbox" id="asr-gat" checked onchange="runAnalysis()"></td>
                             </tr>
@@ -169,7 +181,7 @@
                 <summary>⚖️ Alignment Methode</summary>
                 <div class="panel-content">
                     <select id="alignment-preset" class="form-select" onchange="changeAlignmentPreset()">
-                        <option value="nist">NIST Sclite (Standardempfehlung)</option>
+                        <option value="nist">NIST Sclite (Standard)</option>
                         <option value="lev">Standard Levenshtein</option>
                     </select>
                     <div class="weight-grid">
@@ -190,7 +202,7 @@
             </details>
 
             <details class="panel">
-                <summary>🤖 Sprecher-Mapping (ASR ➔ Ref)</summary>
+                <summary>🤖 Sprecher-Mapping</summary>
                 <div class="panel-content" id="mapping-container">
                     <em class="text-muted">Wartet auf Dateien...</em>
                 </div>
@@ -206,7 +218,6 @@
             </details>
         </div>
 
-        <!-- Main View -->
         <div class="main-view">
             <div id="loading">Berechne Daten...</div>
             <div class="player-container" id="player-row" style="display: none;">
