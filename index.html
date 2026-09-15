@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Whisper Annotation Converter</title>
+    <!-- Eigenes CSS -->
     <link rel="stylesheet" href="style.css">
+    <!-- Prism.js CSS für Syntax Highlighting (Dark Theme) -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
 </head>
 <body>
     <div class="container">
@@ -22,12 +25,16 @@
                 <!-- Input -->
                 <div class="code-block">
                     <h3>1. Input: Whisper JSON</h3>
-                    <pre><code>{
-  "start": 334.5,
-  "end": 338.3,
-  "text": "Und es war...",
+                    <pre><code class="language-json">{
+  "start": 334.567,
+  "end": 338.333,
+  "text": "Und es war 18.20 Uhr...",
   "words": [
-    { "word": "Und", "start": 334.5, "speaker": "SPEAKER_00" }
+    { 
+      "word": "Und", 
+      "start": 334.567, 
+      "speaker": "SPEAKER_00" 
+    }
   ]
 }</code></pre>
                 </div>
@@ -39,21 +46,23 @@
                     <div class="code-block output-block">
                         <h3>Output A: .flk Datei</h3>
                         <p class="desc">Kombiniert Metadaten und Transkript in einer Struktur.</p>
-                        <pre><code>{
+                        <pre><code class="language-json">{
   "metadata": {
     "title": "Interview 1",
     "date": "2024-05-12"
   },
-  "transcript": [ ... ]
+  "transcript": [ 
+    /* Whisper Segmente hier */ 
+  ]
 }</code></pre>
                     </div>
                     
                     <div class="code-block output-block">
                         <h3>Output B: Sketch Engine XML</h3>
                         <p class="desc">Nutzt &lt;doc&gt; für Metadaten und &lt;u&gt;/&lt;w&gt; für Text.</p>
-                        <pre><code>&lt;doc title="Interview 1" date="2024-05-12"&gt;
-  &lt;u who="SPEAKER_00" start="334.5"&gt;
-    &lt;w start="334.5"&gt;Und&lt;/w&gt;
+                        <pre><code class="language-xml">&lt;doc title="Interview 1" date="2024-05-12"&gt;
+  &lt;u who="SPEAKER_00" start="334.567" end="338.333"&gt;
+    &lt;w start="334.567" end="335.128" score="0.782"&gt;Und&lt;/w&gt;
   &lt;/u&gt;
 &lt;/doc&gt;</code></pre>
                     </div>
@@ -61,23 +70,37 @@
             </div>
         </section>
 
-        <!-- UPLOAD SECTION -->
+        <!-- UPLOAD & METADATA SECTION -->
         <section class="upload-section card">
-            <h2>Dateien hochladen</h2>
+            <h2>Daten & Metadaten</h2>
             <div class="upload-grid">
                 
-                <div class="upload-area" id="drop-zone-transcript">
-                    <input type="file" id="file-input-transcript" accept=".json,.flk">
-                    <label for="file-input-transcript">1. Whisper-Daten (.json / .flk)</label>
-                    <p>Pflichtfeld</p>
-                    <span class="file-name" id="name-transcript"></span>
+                <!-- Transcript Upload -->
+                <div class="upload-column">
+                    <h3>1. Whisper-Daten laden</h3>
+                    <div class="upload-area" id="drop-zone-transcript">
+                        <input type="file" id="file-input-transcript" accept=".json,.flk">
+                        <label for="file-input-transcript">Datei auswählen (.json / .flk)</label>
+                        <p>oder Drag & Drop</p>
+                        <span class="file-name" id="name-transcript"></span>
+                    </div>
                 </div>
 
-                <div class="upload-area" id="drop-zone-meta">
-                    <input type="file" id="file-input-meta" accept=".json">
-                    <label for="file-input-meta">2. Metadaten (.json)</label>
-                    <p>Optional</p>
-                    <span class="file-name" id="name-meta"></span>
+                <!-- Interactive Metadata Editor -->
+                <div class="upload-column metadata-editor">
+                    <h3>2. Metadaten (Optional)</h3>
+                    <p class="editor-desc">Füge Eigenschaften hinzu oder bearbeite das JSON direkt.</p>
+                    
+                    <div class="kv-inputs">
+                        <input type="text" id="meta-key" placeholder="Key (z.B. title)">
+                        <input type="text" id="meta-value" placeholder="Value (z.B. Video 1)">
+                        <button id="btn-add-meta" type="button" class="btn-small">Hinzufügen</button>
+                    </div>
+                    
+                    <div class="json-area-container">
+                        <textarea id="meta-json" rows="5" placeholder='{\n  "title": "Mein Video"\n}' spellcheck="false"></textarea>
+                        <span id="meta-error" class="error hidden">Ungültiges JSON Format!</span>
+                    </div>
                 </div>
 
             </div>
@@ -92,6 +115,11 @@
         </section>
     </div>
 
+    <!-- Prism.js Scripts für Syntax Highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    
+    <!-- Eigenes Script -->
     <script src="script.js"></script>
 </body>
 </html>

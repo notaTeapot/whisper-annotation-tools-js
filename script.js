@@ -2,22 +2,27 @@ let transcriptData = null;
 let metadataObj = {};
 let originalFileName = "export";
 
-// UI Elements
+// UI Elements: Upload
 const inputTranscript = document.getElementById('file-input-transcript');
-const inputMeta = document.getElementById('file-input-meta');
 const dropZoneTranscript = document.getElementById('drop-zone-transcript');
-const dropZoneMeta = document.getElementById('drop-zone-meta');
 const nameTranscript = document.getElementById('name-transcript');
-const nameMeta = document.getElementById('name-meta');
 
+// UI Elements: Metadata Editor
+const metaKey = document.getElementById('meta-key');
+const metaValue = document.getElementById('meta-value');
+const btnAddMeta = document.getElementById('btn-add-meta');
+const metaJsonTextarea = document.getElementById('meta-json');
+const metaError = document.getElementById('meta-error');
+
+// UI Elements: Actions
 const actionSection = document.getElementById('action-section');
 const statusMessage = document.getElementById('status-message');
 const btnDownloadFLK = document.getElementById('btn-download-flk');
 const btnDownloadXML = document.getElementById('btn-download-xml');
 
-// --- File Handling Logic ---
+// --- Drag & Drop & File Handling ---
 
-function setupDropZone(dropZone, fileInput, nameDisplay, isMeta) {
+function setupDropZone(dropZone, fileInput, nameDisplay) {
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, e => {
             e.preventDefault();
@@ -35,39 +40,33 @@ function setupDropZone(dropZone, fileInput, nameDisplay, isMeta) {
 
     dropZone.addEventListener('drop', e => {
         const file = e.dataTransfer.files[0];
-        if (file) handleFile(file, nameDisplay, isMeta);
+        if (file) handleFile(file, nameDisplay);
     });
 
     fileInput.addEventListener('change', function() {
-        if (this.files[0]) handleFile(this.files[0], nameDisplay, isMeta);
+        if (this.files[0]) handleFile(this.files[0], nameDisplay);
     });
 }
 
-setupDropZone(dropZoneTranscript, inputTranscript, nameTranscript, false);
-setupDropZone(dropZoneMeta, inputMeta, nameMeta, true);
+setupDropZone(dropZoneTranscript, inputTranscript, nameTranscript);
 
-function handleFile(file, nameDisplay, isMeta) {
+function handleFile(file, nameDisplay) {
     const reader = new FileReader();
     nameDisplay.textContent = file.name;
-    
-    if (!isMeta) {
-        originalFileName = file.name.replace(/\.[^/.]+$/, "");
-    }
+    originalFileName = file.name.replace(/\.[^/.]+$/, "");
 
     reader.onload = function(e) {
         try {
             const parsed = JSON.parse(e.target.result);
-            if (isMeta) {
-                metadataObj = parsed;
+            
+            // Kompatibilität mit dem FLK Format aus dem Repo
+            if (parsed.transcript && parsed.metadata) {
+                transcriptData = parsed.transcript;
+                metadataObj = parsed.metadata; 
+                updateMetaTextarea(); 
             } else {
-                // If the uploaded file is already a .flk (contains metadata + transcript), extract accordingly
-                if (parsed.transcript && parsed.metadata) {
-                    transcriptData = parsed.transcript;
-                    metadataObj = parsed.metadata; // Override with internal metadata if present
-                    nameMeta.textContent = "Metadaten aus .flk geladen";
-                } else {
-                    transcriptData = parsed;
-                }
+                // Rohdaten Whisper JSON Array
+                transcriptData = parsed;
             }
             checkReadyState();
         } catch (error) {
@@ -86,6 +85,52 @@ function checkReadyState() {
     }
 }
 
+// --- Metadata Editor Logic ---
+
+function updateMetaTextarea() {
+    if (Object.keys(metadataObj).length === 0) {
+        metaJsonTextarea.value = '';
+    } else {
+        metaJsonTextarea.value = JSON.stringify(metadataObj, null, 2);
+    }
+}
+
+btnAddMeta.addEventListener('click', () => {
+    const k = metaKey.value.trim();
+    const v = metaValue.value.trim();
+    
+    if (k) {
+        metadataObj[k] = v;
+        updateMetaTextarea();
+        
+        metaKey.value = '';
+        metaValue.value = '';
+        metaError.classList.add('hidden');
+    }
+});
+
+metaJsonTextarea.addEventListener('input', () => {
+    const raw = metaJsonTextarea.value.trim();
+    
+    if (!raw) {
+        metadataObj = {};
+        metaError.classList.add('hidden');
+        return;
+    }
+    
+    try {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+            metadataObj = parsed;
+            metaError.classList.add('hidden');
+        } else {
+            throw new Error("Muss ein JSON-Objekt sein.");
+        }
+    } catch (e) {
+        metaError.classList.remove('hidden');
+    }
+});
+
 // --- Conversion Logic ---
 
 function downloadBlob(content, filename, contentType) {
@@ -100,7 +145,7 @@ function downloadBlob(content, filename, contentType) {
     URL.revokeObjectURL(url);
 }
 
-// 1. Export as .flk (JSON structure)
+// 1. Export as .flk (Beibehaltung der Funktionalität aus dem Repo)
 btnDownloadFLK.addEventListener('click', () => {
     if (!transcriptData) return;
     
@@ -117,11 +162,13 @@ btnDownloadFLK.addEventListener('click', () => {
 btnDownloadXML.addEventListener('click', () => {
     if (!transcriptData) return;
     
-    // Construct doc attributes from metadata
     let docAttributes = '';
     for (const [key, value] of Object.entries(metadataObj)) {
-        // Ensure values are safe for XML attributes
-        const safeValue = String(value).replace(/"/g, '&quot;').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+        const safeValue = String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
         docAttributes += ` ${key}="${safeValue}"`;
     }
 
@@ -136,12 +183,14 @@ btnDownloadXML.addEventListener('click', () => {
 
         if (segment.words && Array.isArray(segment.words)) {
             segment.words.forEach(w => {
+                // Word score als Attribut, Wort-Text sicher escapen
+                const scoreAttr = w.score !== undefined ? ` score="${w.score}"` : '';
                 const wordText = w.word
                     .replace(/&/g, '&amp;')
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;');
                 
-                xml += `      <w start="${w.start}" end="${w.end}" score="${w.score}">${wordText}</w>\n`;
+                xml += `      <w start="${w.start}" end="${w.end}"${scoreAttr}>${wordText}</w>\n`;
             });
         }
         xml += `    </u>\n`;
