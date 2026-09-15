@@ -1,7 +1,7 @@
 let episodesData = [];
 let currentPodcastMeta = {};
 
-// UI Elemente Sidebar
+// UI Elemente
 const searchInput = document.getElementById('search-input');
 const searchBtn = document.getElementById('search-btn');
 const searchResults = document.getElementById('search-results');
@@ -9,7 +9,6 @@ const rssInput = document.getElementById('rss-input');
 const loadRssBtn = document.getElementById('load-rss-btn');
 const rssFileInput = document.getElementById('rss-file-input');
 
-// UI Elemente Main
 const podcastHeader = document.getElementById('podcast-header');
 const podTitle = document.getElementById('pod-title');
 const podAuthor = document.getElementById('pod-author');
@@ -24,7 +23,7 @@ const selCount = document.getElementById('sel-count');
 const episodeSearchInput = document.getElementById('episode-search');
 
 // ==========================================
-// 1. ITUNES SEARCH & LOOKUP API
+// 1. ITUNES SEARCH API
 // ==========================================
 searchBtn.addEventListener('click', async () => {
     const query = searchInput.value.trim();
@@ -54,7 +53,9 @@ searchBtn.addEventListener('click', async () => {
             `;
             li.addEventListener('click', () => {
                 rssInput.value = pod.feedUrl; 
-                loadFromiTunes(pod.collectionId, pod.artworkUrl100);
+                // Wir nutzen iTunes nur für die Meta-Daten/Suche, laden aber den echten RSS Feed,
+                // um das 200 Episoden Limit von Apple zu umgehen.
+                loadRSSUrl(pod.feedUrl, pod.collectionName, pod.artistName, pod.artworkUrl100);
             });
             searchResults.appendChild(li);
         });
@@ -65,59 +66,68 @@ searchBtn.addEventListener('click', async () => {
 
 searchInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') searchBtn.click(); });
 
-async function loadFromiTunes(collectionId, fallbackImg) {
+
+// ==========================================
+// 2. RSS URL LADEN & PAGINIERUNG (CORS Bypasses)
+// ==========================================
+loadRssBtn.addEventListener('click', () => {
+    const url = rssInput.value.trim();
+    if(url) loadRSSUrl(url);
+});
+
+// Stufenweises Fetching zur maximalen Kompatibilität
+async function fetchXML(url) {
+    try {
+        const directRes = await fetch(url);
+        if (directRes.ok) return await directRes.text();
+    } catch (e) {}
+
+    try {
+        const res = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`);
+        if (res.ok) return await res.text();
+    } catch (e) {}
+
+    try {
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        const res = await fetch(proxyUrl);
+        const data = await res.json();
+        if (data.contents) return data.contents;
+    } catch (e) {
+        throw new Error("Der Server blockiert alle Anfragen oder der Feed ist zu groß.");
+    }
+    throw new Error("Feed konnte nicht geladen werden.");
+}
+
+async function loadRSSUrl(feedUrl, fallbackTitle = "", fallbackAuthor = "", fallbackImg = "") {
     podcastHeader.style.display = 'none';
     episodesTable.style.display = 'none';
     noEpMsg.style.display = 'none';
     loadingInd.style.display = 'block';
+    
+    episodesData = []; // Reset
+    let currentUrl = feedUrl;
+    let pageCount = 0;
 
     try {
-        const res = await fetch(`https://itunes.apple.com/lookup?id=${collectionId}&entity=podcastEpisode&limit=5000`);
-        const data = await res.json();
-
-        if(data.results.length === 0) throw new Error("Keine Daten bei Apple gefunden.");
-
-        const podcastInfo = data.results.find(r => r.kind === 'podcast' || r.wrapperType === 'track');
-        const episodes = data.results.filter(r => r.wrapperType === 'podcastEpisode');
-
-        currentPodcastMeta = {
-            title: podcastInfo?.collectionName || "Unbekannt",
-            author: podcastInfo?.artistName || "Unbekannt",
-            feedUrl: podcastInfo?.feedUrl || ""
-        };
-
-        podTitle.textContent = currentPodcastMeta.title;
-        podAuthor.textContent = currentPodcastMeta.author;
-        podImage.src = podcastInfo?.artworkUrl600 || podcastInfo?.artworkUrl100 || fallbackImg || '';
-
-        episodesData = [];
-        episodes.forEach((ep, index) => {
-            if (ep.episodeUrl) {
-                let dateObj = new Date(ep.releaseDate);
-                let dateStr = isNaN(dateObj.getTime()) ? ep.releaseDate : dateObj.toISOString().split('T')[0];
-
-                episodesData.push({
-                    id: index,
-                    title: ep.trackName || `Episode ${index + 1}`,
-                    date: dateStr,
-                    description: ep.description || "",
-                    audioUrl: ep.episodeUrl,
-                    audioType: ep.episodeContentType || "audio/mpeg"
-                });
-            }
-        });
-
-        if (episodesData.length === 0) throw new Error("Der iTunes-Eintrag enthält keine abrufbaren Episoden-URLs.");
-
+        // Paginierungs-Loop (Unterstützung für <atom:link rel="next">)
+        while (currentUrl && pageCount < 20) { // Max 20 Seiten als Sicherheitslimit
+            loadingInd.textContent = `Lade Episoden... (${episodesData.length} gefunden)`;
+            
+            const xmlText = await fetchXML(currentUrl);
+            const nextUrl = parseXMLStringAndAppend(xmlText, fallbackTitle, fallbackAuthor, fallbackImg, feedUrl, pageCount === 0);
+            
+            currentUrl = nextUrl;
+            pageCount++;
+        }
+        
         finalizeParsing();
-
     } catch (err) {
-        showError(`iTunes Abruf fehlgeschlagen: ${err.message}`);
+        showError(`Feed konnte nicht vollständig geladen werden. Bitte Feed-URL im Browser öffnen, als .xml speichern und lokal hochladen. (${err.message})`);
     }
 }
 
 // ==========================================
-// 2. LOKALER DATEI-UPLOAD
+// 3. LOKALER DATEI-UPLOAD (Fallback)
 // ==========================================
 rssFileInput.addEventListener('change', function(e) {
     const file = e.target.files[0];
@@ -127,56 +137,19 @@ rssFileInput.addEventListener('change', function(e) {
     episodesTable.style.display = 'none';
     noEpMsg.style.display = 'none';
     loadingInd.style.display = 'block';
+    episodesData = []; // Reset
 
     const reader = new FileReader();
     reader.onload = function(event) {
         try {
-            parseXMLString(event.target.result, file.name, "Lokale Datei", "", "lokal");
+            parseXMLStringAndAppend(event.target.result, file.name, "Lokale Datei", "", "lokal", true);
+            finalizeParsing();
         } catch (err) {
             showError(`Lokale Datei fehlerhaft: ${err.message}`);
         }
     };
     reader.readAsText(file);
 });
-
-// ==========================================
-// 3. RSS URL LADEN
-// ==========================================
-loadRssBtn.addEventListener('click', () => {
-    const url = rssInput.value.trim();
-    if(url) loadRSSUrl(url);
-});
-
-async function fetchXML(url) {
-    try {
-        const directRes = await fetch(url);
-        if (directRes.ok) return await directRes.text();
-    } catch (e) {}
-
-    try {
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        const res = await fetch(proxyUrl);
-        const data = await res.json();
-        if (data.contents) return data.contents;
-    } catch (e) {
-        throw new Error("Der Server blockiert alle externen Anfragen oder das XML ist zu groß.");
-    }
-    throw new Error("Fehler beim Verarbeiten des Feeds.");
-}
-
-async function loadRSSUrl(feedUrl) {
-    podcastHeader.style.display = 'none';
-    episodesTable.style.display = 'none';
-    noEpMsg.style.display = 'none';
-    loadingInd.style.display = 'block';
-
-    try {
-        const xmlText = await fetchXML(feedUrl);
-        parseXMLString(xmlText, "Unbekannt", "Unbekannt", "", feedUrl);
-    } catch (err) {
-        showError(`Netzwerk Blockade. Bitte nutze die Such-Funktion oben. (${err.message})`);
-    }
-}
 
 function showError(message) {
     loadingInd.style.display = 'none';
@@ -185,33 +158,35 @@ function showError(message) {
 }
 
 // ==========================================
-// 4. PARSING LOGIK (Für RSS/XML)
+// 4. PARSING LOGIK
 // ==========================================
-function parseXMLString(xmlText, fallbackTitle, fallbackAuthor, fallbackImg, sourceUrl) {
+function parseXMLStringAndAppend(xmlText, fallbackTitle, fallbackAuthor, fallbackImg, sourceUrl, isFirstPage) {
     const parser = new DOMParser();
     const xml = parser.parseFromString(xmlText, "text/xml");
 
     const parseError = xml.querySelector("parsererror");
     if (parseError) throw new Error("Kein gültiges XML/RSS-Format.");
 
-    const channel = xml.querySelector('channel');
-    if (!channel) throw new Error("Kein <channel> Element im Feed.");
+    // Beim ersten Aufruf Podcast-Metadaten setzen
+    if (isFirstPage) {
+        const channel = xml.querySelector('channel');
+        if (!channel) throw new Error("Kein <channel> Element im Feed.");
 
-    const cTitle = channel.querySelector('title')?.textContent || fallbackTitle;
-    const cAuthor = channel.querySelector('itunes\\:author')?.textContent || channel.querySelector('author')?.textContent || fallbackAuthor;
-    const cImage = channel.querySelector('itunes\\:image')?.getAttribute('href') || channel.querySelector('image url')?.textContent || fallbackImg;
+        const cTitle = channel.querySelector('title')?.textContent || fallbackTitle;
+        const cAuthor = channel.querySelector('itunes\\:author')?.textContent || channel.querySelector('author')?.textContent || fallbackAuthor;
+        const cImage = channel.querySelector('itunes\\:image')?.getAttribute('href') || channel.querySelector('image url')?.textContent || fallbackImg;
 
-    currentPodcastMeta = { title: cTitle, author: cAuthor, feedUrl: sourceUrl };
+        currentPodcastMeta = { title: cTitle, author: cAuthor, feedUrl: sourceUrl };
 
-    podTitle.textContent = cTitle;
-    podAuthor.textContent = cAuthor;
-    podImage.src = cImage || 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='; 
+        podTitle.textContent = cTitle;
+        podAuthor.textContent = cAuthor;
+        podImage.src = cImage || 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='; 
+    }
     
-    episodesData = [];
+    // Episoden extrahieren
     const items = xml.querySelectorAll('item');
-
-    items.forEach((item, index) => {
-        const title = item.querySelector('title')?.textContent || `Episode ${index + 1}`;
+    items.forEach((item) => {
+        const title = item.querySelector('title')?.textContent || `Episode ${episodesData.length + 1}`;
         const pubDate = item.querySelector('pubDate')?.textContent || "";
         let description = item.querySelector('description')?.textContent || item.querySelector('itunes\\:summary')?.textContent || "";
         description = description.replace(/<[^>]*>?/gm, '').trim();
@@ -224,16 +199,31 @@ function parseXMLString(xmlText, fallbackTitle, fallbackAuthor, fallbackImg, sou
             let dateObj = new Date(pubDate);
             let dateStr = isNaN(dateObj.getTime()) ? pubDate : dateObj.toISOString().split('T')[0];
 
-            episodesData.push({ id: index, title: title, date: dateStr, description: description, audioUrl: audioUrl, audioType: audioType });
+            episodesData.push({ 
+                id: episodesData.length, 
+                title: title, 
+                date: dateStr, 
+                description: description, 
+                audioUrl: audioUrl, 
+                audioType: audioType 
+            });
         }
     });
 
-    finalizeParsing();
+    // Prüfen ob es eine nächste Seite gibt (RFC 5005 Paginierung)
+    const links = xml.querySelectorAll('*'); // Namespace-sicherer Query
+    for (let i = 0; i < links.length; i++) {
+        const nodeName = links[i].nodeName.toLowerCase();
+        if ((nodeName === 'link' || nodeName.includes(':link')) && links[i].getAttribute('rel') === 'next') {
+            return links[i].getAttribute('href');
+        }
+    }
+    return null; // Keine weitere Seite
 }
 
 function finalizeParsing() {
     renderEpisodes();
-    episodeSearchInput.value = ""; // Suchfeld leeren bei neuem Feed
+    episodeSearchInput.value = ""; 
     loadingInd.style.display = 'none';
     podcastHeader.style.display = 'flex';
     episodesTable.style.display = 'table';
@@ -266,20 +256,15 @@ function renderEpisodes() {
     });
 }
 
-// Such-/Filterfunktion
+// Suchfunktion Episoden
 episodeSearchInput.addEventListener('input', (e) => {
     const term = e.target.value.toLowerCase();
     const rows = episodesBody.querySelectorAll('tr');
     
     rows.forEach(row => {
         const text = row.innerText.toLowerCase();
-        if (text.includes(term)) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
+        row.style.display = text.includes(term) ? '' : 'none';
     });
-    
     checkAll.checked = false;
 });
 
@@ -287,9 +272,7 @@ checkAll.addEventListener('change', (e) => {
     const isChecked = e.target.checked;
     document.querySelectorAll('.ep-check').forEach(cb => { 
         const row = cb.closest('tr');
-        if (row.style.display !== 'none') {
-            cb.checked = isChecked; 
-        }
+        if (row.style.display !== 'none') cb.checked = isChecked; 
     });
     updateSelCount();
 });
@@ -300,10 +283,10 @@ function updateSelCount() {
     downloadBtn.disabled = count === 0;
 }
 
-// Funktion für sichere Dateinamen
+// Bereinigt Dateinamen (Entfernt Sonderzeichen, doppelte Unterstriche etc.)
 function sanitizeFilename(name) {
     if (!name) return "unbekannt";
-    return name.replace(/[^a-z0-9_äöüß-]/gi, '_').substring(0, 80);
+    return name.replace(/[^a-z0-9_äöüß-]/gi, '_').replace(/_+/g, '_').substring(0, 80);
 }
 
 // ==========================================
@@ -324,7 +307,8 @@ downloadBtn.addEventListener('click', async () => {
         if (ep) {
             downloadBtn.textContent = `Lade (${i + 1}/${selectedBoxes.length})...`;
 
-            // NEUES NAMENSFORMAT: PodcastName_Datum_EpisodenTitel
+            // === HIER IST DEIN GEFORDERTES DATEINAMEN FORMAT ===
+            // Format: PodcastName_Datum_Folge
             const safePodcastTitle = sanitizeFilename(currentPodcastMeta.title || "Podcast");
             const safeEpTitle = sanitizeFilename(ep.title || "Episode");
             const fileNameBase = `${safePodcastTitle}_${ep.date}_${safeEpTitle}`;
@@ -339,7 +323,7 @@ downloadBtn.addEventListener('click', async () => {
                 description: ep.description
             };
             
-            // Metadaten JSON speichern
+            // 1. JSON Metadaten herunterladen (name_metadata.json)
             const jsonBlob = new Blob([JSON.stringify(metadata, null, 2)], { type: 'application/json' });
             const jsonUrl = URL.createObjectURL(jsonBlob);
             const aJson = document.createElement('a');
@@ -352,7 +336,7 @@ downloadBtn.addEventListener('click', async () => {
 
             await new Promise(r => setTimeout(r, 600));
 
-            // Audiodatei triggern
+            // 2. Audiodatei triggern (name.mp3)
             let ext = ".mp3";
             if (ep.audioUrl.toLowerCase().includes(".m4a")) ext = ".m4a";
             if (ep.audioUrl.toLowerCase().includes(".wav")) ext = ".wav";

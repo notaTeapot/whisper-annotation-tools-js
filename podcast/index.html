@@ -24,7 +24,7 @@
             <details class="panel" open>
                 <summary>🔍 iTunes Podcast Suche (Empfohlen)</summary>
                 <div class="panel-content">
-                    <p class="text-muted" style="margin-bottom: 10px;">Suche weltweit nach Podcasts. Lädt alle Episoden als sauberes JSON, ohne CORS-Blockaden.</p>
+                    <p class="text-muted" style="margin-bottom: 10px;">Suche weltweit nach Podcasts. Das Tool ermittelt den originalen RSS-Feed und lädt <strong>alle Episoden</strong> herunter (umgeht das Apple-200-Episoden Limit).</p>
                     <div class="search-box">
                         <input type="text" id="search-input" placeholder="Z.B. 'Tagesschau' oder 'Linguistics'">
                         <button id="search-btn" class="btn-primary" style="padding: 0 15px;">Suchen</button>
@@ -38,8 +38,7 @@
             <details class="panel">
                 <summary>📂 Lokale RSS-Datei (.xml)</summary>
                 <div class="panel-content">
-                    <p class="text-muted" style="margin-bottom: 10px;">Falls ein Podcast nicht gelistet ist: Rufe die Feed-URL im Browser auf, speichere sie als .xml und lade sie hier hoch.</p>
-                    <!-- FIX: Jetzt als Label-Upload -->
+                    <p class="text-muted" style="margin-bottom: 10px;">Falls ein Podcast nicht gelistet ist: Rufe die Feed-URL im Browser auf, speichere sie (<code>Strg+S</code>) als .xml und lade sie hier hoch.</p>
                     <label class="upload-area" for="rss-file-input" style="padding: 1rem;">
                         <input type="file" id="rss-file-input" accept=".xml,.rss">
                         <strong>RSS Datei hochladen (.xml)</strong>
@@ -50,11 +49,22 @@
             <details class="panel">
                 <summary>🔗 Direkter RSS-Feed Link</summary>
                 <div class="panel-content">
-                    <p class="text-muted" style="margin-bottom: 10px;">Kann je nach Hoster durch CORS blockiert werden.</p>
+                    <p class="text-muted" style="margin-bottom: 10px;">Lade einen Feed direkt per URL.</p>
                     <div class="search-box" style="margin-bottom: 0;">
                         <input type="url" id="rss-input" placeholder="https://example.com/feed.xml">
                         <button id="load-rss-btn" class="btn-secondary" style="padding: 0 15px;">Laden</button>
                     </div>
+                </div>
+            </details>
+
+            <details class="panel" open>
+                <summary>🛠️ Download-Information</summary>
+                <div class="panel-content">
+                    <p class="text-muted">Beim Download wird für jede ausgewählte Episode eine <strong>Metadaten-JSON</strong> generiert und der Download der <strong>Audiodatei</strong> gestartet.</p>
+                    <br>
+                    <p class="text-muted"><strong>Format:</strong> <code>PodcastName_Datum_Episodentitel</code></p>
+                    <br>
+                    <p class="text-muted"><strong>Wichtig:</strong> Erlaube deinem Browser den Download <em>mehrerer Dateien</em> gleichzeitig (Pop-Up Blockierung aufheben).</p>
                 </div>
             </details>
         </div>
@@ -67,7 +77,6 @@
                     <p id="pod-author" class="text-muted">Autor</p>
                 </div>
                 
-                <!-- HIER IST DAS NEUE EPISODEN-FILTER FELD -->
                 <div>
                     <input type="text" id="episode-search" placeholder="Episoden filtern..." style="padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius); outline: none; width: 200px;">
                 </div>
@@ -78,7 +87,7 @@
             </div>
 
             <div id="loading-indicator" style="display: none; font-weight: 600; color: var(--accent-primary); text-align: center; padding: 40px;">
-                Verarbeite Daten...
+                Lade Feed-Daten...
             </div>
 
             <div style="flex: 1; overflow-y: auto; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: var(--radius);">
