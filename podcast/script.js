@@ -21,9 +21,10 @@ const noEpMsg = document.getElementById('no-episodes-msg');
 const checkAll = document.getElementById('check-all');
 const downloadBtn = document.getElementById('download-btn');
 const selCount = document.getElementById('sel-count');
+const episodeSearchInput = document.getElementById('episode-search');
 
 // ==========================================
-// 1. ITUNES SEARCH API
+// 1. ITUNES SEARCH & LOOKUP API
 // ==========================================
 searchBtn.addEventListener('click', async () => {
     const query = searchInput.value.trim();
@@ -116,7 +117,7 @@ async function loadFromiTunes(collectionId, fallbackImg) {
 }
 
 // ==========================================
-// 2. LOKALER DATEI-UPLOAD (Fallback)
+// 2. LOKALER DATEI-UPLOAD
 // ==========================================
 rssFileInput.addEventListener('change', function(e) {
     const file = e.target.files[0];
@@ -158,7 +159,7 @@ async function fetchXML(url) {
         const data = await res.json();
         if (data.contents) return data.contents;
     } catch (e) {
-        throw new Error("Der Server blockiert alle externen Anfragen.");
+        throw new Error("Der Server blockiert alle externen Anfragen oder das XML ist zu groß.");
     }
     throw new Error("Fehler beim Verarbeiten des Feeds.");
 }
@@ -173,18 +174,18 @@ async function loadRSSUrl(feedUrl) {
         const xmlText = await fetchXML(feedUrl);
         parseXMLString(xmlText, "Unbekannt", "Unbekannt", "", feedUrl);
     } catch (err) {
-        showError(`Netzwerk Blockade. Bitte nutze die Suche oder lade eine lokale XML hoch. (${err.message})`);
+        showError(`Netzwerk Blockade. Bitte nutze die Such-Funktion oben. (${err.message})`);
     }
 }
 
 function showError(message) {
     loadingInd.style.display = 'none';
     noEpMsg.style.display = 'block';
-    noEpMsg.innerHTML = `<span style="color:var(--del-text); background:var(--del-bg); padding:10px; border-radius:4px; display:inline-block;">${message}</span>`;
+    noEpMsg.innerHTML = `<span style="color:var(--del-text); background:var(--del-bg); padding:10px; border-radius:4px; display:inline-block; max-width:80%; line-height: 1.4;">${message}</span>`;
 }
 
 // ==========================================
-// 4. PARSING LOGIK
+// 4. PARSING LOGIK (Für RSS/XML)
 // ==========================================
 function parseXMLString(xmlText, fallbackTitle, fallbackAuthor, fallbackImg, sourceUrl) {
     const parser = new DOMParser();
@@ -232,11 +233,15 @@ function parseXMLString(xmlText, fallbackTitle, fallbackAuthor, fallbackImg, sou
 
 function finalizeParsing() {
     renderEpisodes();
+    episodeSearchInput.value = ""; // Suchfeld leeren bei neuem Feed
     loadingInd.style.display = 'none';
     podcastHeader.style.display = 'flex';
     episodesTable.style.display = 'table';
 }
 
+// ==========================================
+// 5. EPISODEN RENDERING & SELEKTION
+// ==========================================
 function renderEpisodes() {
     episodesBody.innerHTML = '';
     checkAll.checked = false;
@@ -261,9 +266,33 @@ function renderEpisodes() {
     });
 }
 
+// HIER IST DIE NEUE SUCH-/FILTERFUNKTION FÜR EPISODEN
+episodeSearchInput.addEventListener('input', (e) => {
+    const term = e.target.value.toLowerCase();
+    const rows = episodesBody.querySelectorAll('tr');
+    
+    rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        if (text.includes(term)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    // Nach dem Filtern "Alle Auswählen" Status zurücksetzen
+    checkAll.checked = false;
+});
+
+// "Alle Auswählen" betrifft nur aktuell sichtbare (gefilterte) Zeilen
 checkAll.addEventListener('change', (e) => {
     const isChecked = e.target.checked;
-    document.querySelectorAll('.ep-check').forEach(cb => { cb.checked = isChecked; });
+    document.querySelectorAll('.ep-check').forEach(cb => { 
+        const row = cb.closest('tr');
+        if (row.style.display !== 'none') {
+            cb.checked = isChecked; 
+        }
+    });
     updateSelCount();
 });
 
@@ -278,7 +307,7 @@ function sanitizeFilename(name) {
 }
 
 // ==========================================
-// 6. DIREKTER DOWNLOAD (_metadata.json UPDATE)
+// 6. DIREKTER DOWNLOAD
 // ==========================================
 downloadBtn.addEventListener('click', async () => {
     const selectedBoxes = document.querySelectorAll('.ep-check:checked');
@@ -298,7 +327,6 @@ downloadBtn.addEventListener('click', async () => {
             const safeTitle = sanitizeFilename(ep.title);
             const fileNameBase = `${ep.date}_${safeTitle}`;
             
-            // 1. JSON Metadaten herunterladen (mit dem angeforderten '_metadata.json' Prefix!)
             const metadata = {
                 podcast_title: currentPodcastMeta.title,
                 podcast_author: currentPodcastMeta.author,
@@ -313,13 +341,14 @@ downloadBtn.addEventListener('click', async () => {
             const jsonUrl = URL.createObjectURL(jsonBlob);
             const aJson = document.createElement('a');
             aJson.href = jsonUrl;
-            aJson.download = `${fileNameBase}_metadata.json`;
+            aJson.download = `${fileNameBase}_metadata.json`; // Hier ist dein gefordertes Suffix
             document.body.appendChild(aJson);
             aJson.click();
             document.body.removeChild(aJson);
             URL.revokeObjectURL(jsonUrl);
 
-            // 2. Audio-Datei via Fetch in einen Blob laden
+            await new Promise(r => setTimeout(r, 600));
+
             let ext = ".mp3";
             if (ep.audioUrl.toLowerCase().includes(".m4a")) ext = ".m4a";
             if (ep.audioUrl.toLowerCase().includes(".wav")) ext = ".wav";
@@ -341,7 +370,7 @@ downloadBtn.addEventListener('click', async () => {
                 URL.revokeObjectURL(audioBlobUrl);
                 
             } catch (err) {
-                console.warn("CORS/Fetch Fehler beim Audio-Download. Nutze Fallback (neues Tab).", err);
+                console.warn("CORS blockiert den Audio-Download. Nutze neues Fenster.", err);
                 const aAudioFallback = document.createElement('a');
                 aAudioFallback.href = ep.audioUrl;
                 aAudioFallback.download = `${fileNameBase}${ext}`;
