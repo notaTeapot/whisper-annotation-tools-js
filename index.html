@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whisper Annotation Converter</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Whisper Annotation Converter</h1>
+            <p class="subtitle">Konvertiere Whisper-JSON in .flk oder Sketch Engine XML</p>
+        </header>
+
+        <!-- VISUAL GUIDE -->
+        <section class="guide-section card">
+            <h2>Wie die Konvertierung funktioniert</h2>
+            <p>Das Tool nimmt deine Whisper-Daten (und optional Metadaten) und wandelt sie in dein gewünschtes Zielformat um.</p>
+            
+            <div class="flow-container">
+                <!-- Input -->
+                <div class="code-block">
+                    <h3>1. Input: Whisper JSON</h3>
+                    <pre><code>{
+  "start": 334.5,
+  "end": 338.3,
+  "text": "Und es war...",
+  "words": [
+    { "word": "Und", "start": 334.5, "speaker": "SPEAKER_00" }
+  ]
+}</code></pre>
+                </div>
+
+                <div class="arrow">➔</div>
+
+                <!-- Outputs -->
+                <div class="outputs-container">
+                    <div class="code-block output-block">
+                        <h3>Output A: .flk Datei</h3>
+                        <p class="desc">Kombiniert Metadaten und Transkript in einer Struktur.</p>
+                        <pre><code>{
+  "metadata": {
+    "title": "Interview 1",
+    "date": "2024-05-12"
+  },
+  "transcript": [ ... ]
+}</code></pre>
+                    </div>
+                    
+                    <div class="code-block output-block">
+                        <h3>Output B: Sketch Engine XML</h3>
+                        <p class="desc">Nutzt &lt;doc&gt; für Metadaten und &lt;u&gt;/&lt;w&gt; für Text.</p>
+                        <pre><code>&lt;doc title="Interview 1" date="2024-05-12"&gt;
+  &lt;u who="SPEAKER_00" start="334.5"&gt;
+    &lt;w start="334.5"&gt;Und&lt;/w&gt;
+  &lt;/u&gt;
+&lt;/doc&gt;</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- UPLOAD SECTION -->
+        <section class="upload-section card">
+            <h2>Dateien hochladen</h2>
+            <div class="upload-grid">
+                
+                <div class="upload-area" id="drop-zone-transcript">
+                    <input type="file" id="file-input-transcript" accept=".json,.flk">
+                    <label for="file-input-transcript">1. Whisper-Daten (.json / .flk)</label>
+                    <p>Pflichtfeld</p>
+                    <span class="file-name" id="name-transcript"></span>
+                </div>
+
+                <div class="upload-area" id="drop-zone-meta">
+                    <input type="file" id="file-input-meta" accept=".json">
+                    <label for="file-input-meta">2. Metadaten (.json)</label>
+                    <p>Optional</p>
+                    <span class="file-name" id="name-meta"></span>
+                </div>
+
+            </div>
+
+            <div id="action-section" class="hidden">
+                <p id="status-message" class="success">Daten erfolgreich geladen. Wähle das Zielformat:</p>
+                <div class="button-group">
+                    <button id="btn-download-flk" class="btn-secondary">Als .flk exportieren</button>
+                    <button id="btn-download-xml" class="btn-primary">Als Sketch Engine XML exportieren</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
