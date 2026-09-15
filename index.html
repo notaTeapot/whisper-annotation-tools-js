@@ -3,123 +3,245 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Whisper Annotation Converter</title>
+    <title>Linguistic Tools Hub</title>
+    
+    <!-- Prism.js CSS für Syntax Highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    
+    <!-- Wavesurfer.js für die Audio-Visualisierung (Folker) -->
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
+    
     <!-- Eigenes CSS -->
     <link rel="stylesheet" href="style.css">
-    <!-- Prism.js CSS für Syntax Highlighting (Dark Theme) -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Whisper Annotation Converter</h1>
-            <p class="subtitle">Konvertiere Whisper-JSON in .flk oder Sketch Engine XML</p>
-        </header>
+    <!-- Top Navigation -->
+    <nav class="main-nav">
+        <div class="nav-brand">LingTools</div>
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-target="whisper-tool">Whisper XML Converter</button>
+            <button class="nav-tab" data-target="folker-tool">Folker WER Analyzer</button>
+        </div>
+    </nav>
 
-        <!-- VISUAL GUIDE -->
-        <section class="guide-section card">
-            <h2>Wie die Konvertierung funktioniert</h2>
-            <p>Das Tool nimmt deine Whisper-Daten (und optional Metadaten) und wandelt sie in dein gewünschtes Zielformat um.</p>
-            
-            <div class="flow-container">
-                <!-- Input -->
-                <div class="code-block">
-                    <h3>1. Input: Whisper JSON</h3>
-                    <pre><code class="language-json">{
-  "start": 334.567,
-  "end": 338.333,
-  "text": "Und es war 18.20 Uhr...",
-  "words": [
-    { 
-      "word": "Und", 
-      "start": 334.567, 
-      "speaker": "SPEAKER_00" 
-    }
-  ]
-}</code></pre>
-                </div>
+    <!-- TOOL 1: WHISPER CONVERTER -->
+    <div id="whisper-tool" class="tool-section active-tool">
+        <div class="whisper-container">
+            <header class="tool-header">
+                <h1>Whisper Annotation Converter</h1>
+                <p class="subtitle">Konvertiere Whisper-JSON in .flk oder Sketch Engine XML</p>
+            </header>
 
-                <div class="arrow">➔</div>
-
-                <!-- Outputs -->
-                <div class="outputs-container">
-                    <div class="code-block output-block">
-                        <h3>Output A: .flk Datei</h3>
-                        <p class="desc">Kombiniert Metadaten und Transkript in einer Struktur.</p>
+            <section class="guide-section card">
+                <h2>Wie die Konvertierung funktioniert</h2>
+                <div class="flow-container">
+                    <div class="code-block">
+                        <h3>1. Input: Whisper JSON</h3>
                         <pre><code class="language-json">{
-  "metadata": {
-    "title": "Interview 1",
-    "date": "2024-05-12"
-  },
-  "transcript": [ 
-    /* Whisper Segmente hier */ 
-  ]
+  "start": 334.5,
+  "end": 338.3,
+  "text": "Und es war...",
+  "words": [ { "word": "Und", "speaker": "SPEAKER_00" } ]
 }</code></pre>
                     </div>
-                    
-                    <div class="code-block output-block">
-                        <h3>Output B: Sketch Engine XML</h3>
-                        <p class="desc">Nutzt &lt;doc&gt; für Metadaten und &lt;u&gt;/&lt;w&gt; für Text.</p>
-                        <pre><code class="language-xml">&lt;doc title="Interview 1" date="2024-05-12"&gt;
-  &lt;u who="SPEAKER_00" start="334.567" end="338.333"&gt;
-    &lt;w start="334.567" end="335.128" score="0.782"&gt;Und&lt;/w&gt;
-  &lt;/u&gt;
+                    <div class="arrow">➔</div>
+                    <div class="outputs-container">
+                        <div class="code-block output-block">
+                            <h3>Output A: .flk Datei</h3>
+                            <pre><code class="language-json">{"metadata": {...}, "transcript": [...]}</code></pre>
+                        </div>
+                        <div class="code-block output-block">
+                            <h3>Output B: Sketch Engine XML</h3>
+                            <pre><code class="language-xml">&lt;doc title="..."&gt;
+  &lt;u who="SPEAKER_00"&gt;&lt;w&gt;Und&lt;/w&gt;&lt;/u&gt;
 &lt;/doc&gt;</code></pre>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- UPLOAD & METADATA SECTION -->
-        <section class="upload-section card">
-            <h2>Daten & Metadaten</h2>
-            <div class="upload-grid">
-                
-                <!-- Transcript Upload -->
-                <div class="upload-column">
-                    <h3>1. Whisper-Daten laden</h3>
-                    <div class="upload-area" id="drop-zone-transcript">
-                        <input type="file" id="file-input-transcript" accept=".json,.flk">
-                        <label for="file-input-transcript">Datei auswählen (.json / .flk)</label>
-                        <p>oder Drag & Drop</p>
-                        <span class="file-name" id="name-transcript"></span>
+            <section class="upload-section card">
+                <h2>Daten & Metadaten</h2>
+                <div class="upload-grid">
+                    <div class="upload-column">
+                        <h3>1. Whisper-Daten laden</h3>
+                        <div class="upload-area" id="drop-zone-transcript">
+                            <input type="file" id="file-input-transcript" accept=".json,.flk">
+                            <label for="file-input-transcript">Datei auswählen (.json / .flk)</label>
+                            <p>oder Drag & Drop</p>
+                            <span class="file-name" id="name-transcript"></span>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Interactive Metadata Editor -->
-                <div class="upload-column metadata-editor">
-                    <h3>2. Metadaten (Optional)</h3>
-                    <p class="editor-desc">Füge Eigenschaften hinzu oder bearbeite das JSON direkt.</p>
-                    
-                    <div class="kv-inputs">
-                        <input type="text" id="meta-key" placeholder="Key (z.B. title)">
-                        <input type="text" id="meta-value" placeholder="Value (z.B. Video 1)">
-                        <button id="btn-add-meta" type="button" class="btn-small">Hinzufügen</button>
-                    </div>
-                    
-                    <div class="json-area-container">
-                        <textarea id="meta-json" rows="5" placeholder='{\n  "title": "Mein Video"\n}' spellcheck="false"></textarea>
-                        <span id="meta-error" class="error hidden">Ungültiges JSON Format!</span>
+                    <div class="upload-column metadata-editor">
+                        <h3>2. Metadaten (Optional)</h3>
+                        <div class="kv-inputs">
+                            <input type="text" id="meta-key" placeholder="Key (z.B. title)">
+                            <input type="text" id="meta-value" placeholder="Value (z.B. Video 1)">
+                            <button id="btn-add-meta" type="button" class="btn-small">Hinzufügen</button>
+                        </div>
+                        <div class="json-area-container">
+                            <textarea id="meta-json" rows="5" spellcheck="false" placeholder='{\n  "title": "Mein Video"\n}'></textarea>
+                            <span id="meta-error" class="error hidden">Ungültiges JSON!</span>
+                        </div>
                     </div>
                 </div>
 
-            </div>
-
-            <div id="action-section" class="hidden">
-                <p id="status-message" class="success">Daten erfolgreich geladen. Wähle das Zielformat:</p>
-                <div class="button-group">
-                    <button id="btn-download-flk" class="btn-secondary">Als .flk exportieren</button>
-                    <button id="btn-download-xml" class="btn-primary">Als Sketch Engine XML exportieren</button>
+                <div id="action-section" class="hidden">
+                    <p id="status-message" class="success">Daten bereit. Wähle das Zielformat:</p>
+                    <div class="button-group">
+                        <button id="btn-download-flk" class="btn-secondary">Als .flk exportieren</button>
+                        <button id="btn-download-xml" class="btn-primary">Als Sketch Engine XML</button>
+                    </div>
                 </div>
-            </div>
-        </section>
+            </section>
+            
+            <footer class="site-footer">
+                <div class="impressum">
+                    <strong>Impressum</strong><br>
+                    Vasco Alexander Sahlbach<br>
+                    Prager Str 1 D, 01069 Dresden<br>
+                    E-Mail: <a href="mailto:couldbeateapot@gmail.com">couldbeateapot@gmail.com</a>
+                </div>
+            </footer>
+        </div>
     </div>
 
-    <!-- Prism.js Scripts für Syntax Highlighting -->
+    <!-- TOOL 2: FOLKER WER ANALYZER -->
+    <div id="folker-tool" class="tool-section">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h2 class="sidebar-title">Folker WER Analyzer</h2>
+            
+            <details class="panel" open>
+                <summary>📂 Dateien hochladen</summary>
+                <div class="panel-content">
+                    <div class="upload-item">
+                        <label>1. Ref-Transkript (.flk)</label>
+                        <input type="file" id="ref-file" accept=".flk,.xml" onchange="handleFileChange()">
+                    </div>
+                    <div class="upload-item">
+                        <label>2. ASR-Transkript (.flk)</label>
+                        <input type="file" id="hyp-file" accept=".flk,.xml" onchange="handleFileChange()">
+                    </div>
+                    <div class="upload-item">
+                        <label>3. Audio-Datei (Optional)</label>
+                        <input type="file" id="audio-file" accept="audio/*">
+                    </div>
+                </div>
+            </details>
+
+            <details class="panel" open>
+                <summary>⚙️ Prüfregeln & Normalisierung</summary>
+                <div class="panel-content" style="padding: 10px;">
+                    <table class="rules-table">
+                        <thead>
+                            <tr><th>Regel</th><th>Ref</th><th>ASR</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Interpunktion entfernen</td>
+                                <td><input type="checkbox" id="ref-punct" checked onchange="runAnalysis()"></td>
+                                <td><input type="checkbox" id="asr-punct" checked onchange="runAnalysis()"></td>
+                            </tr>
+                            <tr>
+                                <td>Nur Kleinschreibung</td>
+                                <td><input type="checkbox" id="ref-case" checked onchange="runAnalysis()"></td>
+                                <td><input type="checkbox" id="asr-case" checked onchange="runAnalysis()"></td>
+                            </tr>
+                            <tr>
+                                <td>GAT2 entfernen ((hustet))</td>
+                                <td><input type="checkbox" id="ref-gat" checked onchange="runAnalysis()"></td>
+                                <td><input type="checkbox" id="asr-gat" checked onchange="runAnalysis()"></td>
+                            </tr>
+                            <tr>
+                                <td>Bindestriche zu Leerzeichen</td>
+                                <td><input type="checkbox" id="ref-hyphen" onchange="runAnalysis()"></td>
+                                <td><input type="checkbox" id="asr-hyphen" checked onchange="runAnalysis()"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+
+            <details class="panel">
+                <summary>⚖️ Alignment Methode</summary>
+                <div class="panel-content">
+                    <select id="alignment-preset" class="form-select" onchange="changeAlignmentPreset()">
+                        <option value="nist">NIST Sclite (Standardempfehlung)</option>
+                        <option value="lev">Standard Levenshtein</option>
+                    </select>
+                    <div class="weight-grid">
+                        <label>Sub: <input type="number" id="weight-sub" value="4" min="1" max="10" onchange="setCustomAlignment()"></label>
+                        <label>Del: <input type="number" id="weight-del" value="3" min="1" max="10" onchange="setCustomAlignment()"></label>
+                        <label>Ins: <input type="number" id="weight-ins" value="3" min="1" max="10" onchange="setCustomAlignment()"></label>
+                    </div>
+                </div>
+            </details>
+
+            <details class="panel" open>
+                <summary>👥 Sprecher-Auswahl</summary>
+                <div class="panel-content">
+                    <div class="speaker-split" id="speaker-settings">
+                        <em class="text-muted">Lade Transkripte hoch, um Sprecher zu filtern.</em>
+                    </div>
+                </div>
+            </details>
+
+            <details class="panel">
+                <summary>🤖 Sprecher-Mapping (ASR ➔ Ref)</summary>
+                <div class="panel-content" id="mapping-container">
+                    <em class="text-muted">Wartet auf Dateien...</em>
+                </div>
+            </details>
+
+            <details class="panel">
+                <summary>📊 Häufigste Fehler</summary>
+                <div class="panel-content error-grid">
+                    <div class="error-col"><h4 style="color: var(--sub-text);">Substitutionen</h4><ul class="error-list" id="top-subs-list"></ul></div>
+                    <div class="error-col"><h4 style="color: var(--del-text);">Deletionen</h4><ul class="error-list" id="top-dels-list"></ul></div>
+                    <div class="error-col"><h4 style="color: var(--ins-text);">Insertionen</h4><ul class="error-list" id="top-ins-list"></ul></div>
+                </div>
+            </details>
+        </div>
+
+        <!-- Main View -->
+        <div class="main-view">
+            <div id="loading">Berechne Daten...</div>
+            <div class="player-container" id="player-row" style="display: none;">
+                <div class="player-top">
+                    <button class="play-btn" id="play-pause-btn">▶</button>
+                    <div class="waveform-col">
+                        <div id="waveform-container"></div>
+                        <div id="wer-graph-container"></div>
+                    </div>
+                </div>
+                <div class="stats-row">
+                    <div class="stat-box stat-wer"><span>WER Gesamt:</span> <span id="wer-score">0%</span></div>
+                    <div class="stat-box stat-sub"><span>Substitutionen:</span> <span id="stat-s">0</span></div>
+                    <div class="stat-box stat-del"><span>Deletionen:</span> <span id="stat-d">0</span></div>
+                    <div class="stat-box stat-ins"><span>Insertionen:</span> <span id="stat-i">0</span></div>
+                </div>
+            </div>
+
+            <div class="editor-container">
+                <div class="tr-header">
+                    <div class="th col-start">Start</div>
+                    <div class="th col-end">Ende</div>
+                    <div class="th col-speaker">Sprecher</div>
+                    <div class="th col-text">Transkriptionstext</div>
+                </div>
+                <div class="tr-body" id="transcript-body">
+                    <div style="padding: 20px; text-align: center; color: #888;">Bitte lade ein Referenz- und ASR-Transkript hoch.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
-    
-    <!-- Eigenes Script -->
     <script src="script.js"></script>
 </body>
 </html>
