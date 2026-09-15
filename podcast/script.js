@@ -72,7 +72,7 @@ async function loadFromiTunes(collectionId, fallbackImg) {
     loadingInd.style.display = 'block';
 
     try {
-        const res = await fetch(`https://itunes.apple.com/lookup?id=${collectionId}&entity=podcastEpisode&limit=500`);
+        const res = await fetch(`https://itunes.apple.com/lookup?id=${collectionId}&entity=podcastEpisode&limit=5000`);
         const data = await res.json();
 
         if(data.results.length === 0) throw new Error("Keine Daten bei Apple gefunden.");
@@ -266,7 +266,7 @@ function renderEpisodes() {
     });
 }
 
-// HIER IST DIE NEUE SUCH-/FILTERFUNKTION FÜR EPISODEN
+// Such-/Filterfunktion
 episodeSearchInput.addEventListener('input', (e) => {
     const term = e.target.value.toLowerCase();
     const rows = episodesBody.querySelectorAll('tr');
@@ -280,11 +280,9 @@ episodeSearchInput.addEventListener('input', (e) => {
         }
     });
     
-    // Nach dem Filtern "Alle Auswählen" Status zurücksetzen
     checkAll.checked = false;
 });
 
-// "Alle Auswählen" betrifft nur aktuell sichtbare (gefilterte) Zeilen
 checkAll.addEventListener('change', (e) => {
     const isChecked = e.target.checked;
     document.querySelectorAll('.ep-check').forEach(cb => { 
@@ -302,7 +300,9 @@ function updateSelCount() {
     downloadBtn.disabled = count === 0;
 }
 
+// Funktion für sichere Dateinamen
 function sanitizeFilename(name) {
+    if (!name) return "unbekannt";
     return name.replace(/[^a-z0-9_äöüß-]/gi, '_').substring(0, 80);
 }
 
@@ -324,8 +324,10 @@ downloadBtn.addEventListener('click', async () => {
         if (ep) {
             downloadBtn.textContent = `Lade (${i + 1}/${selectedBoxes.length})...`;
 
-            const safeTitle = sanitizeFilename(ep.title);
-            const fileNameBase = `${ep.date}_${safeTitle}`;
+            // NEUES NAMENSFORMAT: PodcastName_Datum_EpisodenTitel
+            const safePodcastTitle = sanitizeFilename(currentPodcastMeta.title || "Podcast");
+            const safeEpTitle = sanitizeFilename(ep.title || "Episode");
+            const fileNameBase = `${safePodcastTitle}_${ep.date}_${safeEpTitle}`;
             
             const metadata = {
                 podcast_title: currentPodcastMeta.title,
@@ -337,11 +339,12 @@ downloadBtn.addEventListener('click', async () => {
                 description: ep.description
             };
             
+            // Metadaten JSON speichern
             const jsonBlob = new Blob([JSON.stringify(metadata, null, 2)], { type: 'application/json' });
             const jsonUrl = URL.createObjectURL(jsonBlob);
             const aJson = document.createElement('a');
             aJson.href = jsonUrl;
-            aJson.download = `${fileNameBase}_metadata.json`; // Hier ist dein gefordertes Suffix
+            aJson.download = `${fileNameBase}_metadata.json`; 
             document.body.appendChild(aJson);
             aJson.click();
             document.body.removeChild(aJson);
@@ -349,6 +352,7 @@ downloadBtn.addEventListener('click', async () => {
 
             await new Promise(r => setTimeout(r, 600));
 
+            // Audiodatei triggern
             let ext = ".mp3";
             if (ep.audioUrl.toLowerCase().includes(".m4a")) ext = ".m4a";
             if (ep.audioUrl.toLowerCase().includes(".wav")) ext = ".wav";
@@ -370,7 +374,7 @@ downloadBtn.addEventListener('click', async () => {
                 URL.revokeObjectURL(audioBlobUrl);
                 
             } catch (err) {
-                console.warn("CORS blockiert den Audio-Download. Nutze neues Fenster.", err);
+                console.warn("CORS blockiert den direkten Download. Nutze neues Fenster.", err);
                 const aAudioFallback = document.createElement('a');
                 aAudioFallback.href = ep.audioUrl;
                 aAudioFallback.download = `${fileNameBase}${ext}`;
